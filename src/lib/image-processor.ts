@@ -46,6 +46,11 @@ export async function processImage(file: File): Promise<{ map: RawMap; totalPixe
     const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
     const pixels = imageData.data;
     const totalPixels = canvas.width * canvas.height;
+
+    if (totalPixels === 0) {
+      throw new ValidationError('Image has no pixels.');
+    }
+
     const map: RawMap = {};
 
     for (let index = 0; index < pixels.length; index += 4) {

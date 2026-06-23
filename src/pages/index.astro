@@ -487,6 +487,7 @@
       function runRenderPipeline(): void {
         if (rawMap === null) return;
         const bucketSize = parseInt(slider.value, 10);
+        if (!Number.isFinite(bucketSize) || bucketSize < 1) return;
         const aggregated = reaggregate(rawMap, bucketSize);
         const entries = sortedColours(aggregated, totalPixels);
         renderChart(entries);
@@ -495,9 +496,11 @@
       async function handleFile(file: File): Promise<void> {
         showLoading();
 
-        const fileReaderPromise = new Promise<string>((resolve) => {
+        const fileReaderPromise = new Promise<string>((resolve, reject) => {
           const reader = new FileReader();
           reader.onload = () => resolve(reader.result as string);
+          reader.onerror = () => reject(new Error('Could not read image.'));
+          reader.onabort = () => reject(new Error('Could not read image.'));
           reader.readAsDataURL(file);
         });
 
@@ -537,6 +540,7 @@
             showError('Could not read image.');
           }
           previewImage.classList.remove('visible');
+          previewImage.onload = null;
           previewImage.src = '';
         }
       }
@@ -544,6 +548,7 @@
       previewArea.addEventListener('click', () => fileInput.click());
 
       fileInput.addEventListener('change', () => {
+        if (isProcessing) return;
         const file = fileInput.files?.[0];
         if (file) handleFile(file).catch(() => showError('Unexpected error.'));
       });

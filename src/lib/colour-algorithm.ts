@@ -29,6 +29,11 @@ export function reaggregate(map: RawMap, bucketSize: number): AggregatedMap {
     const red = quantize(parseInt(parts[0]!, 10), bucketSize);
     const green = quantize(parseInt(parts[1]!, 10), bucketSize);
     const blue = quantize(parseInt(parts[2]!, 10), bucketSize);
+
+    if (!Number.isFinite(red) || !Number.isFinite(green) || !Number.isFinite(blue)) {
+      throw new Error(`Malformed colour key: "${key}"`);
+    }
+
     const quantizedKey = `${red},${green},${blue}`;
     result[quantizedKey] = (result[quantizedKey] ?? 0) + count;
   }
