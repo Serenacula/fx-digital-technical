@@ -218,13 +218,6 @@
         window.__lastRendered = undefined;
       }
 
-      function showEmpty(): void {
-        emptyState.style.display = '';
-        loadingState.style.display = 'none';
-        errorState.style.display = 'none';
-        chart.classList.remove('visible');
-      }
-
       function showLoading(): void {
         emptyState.style.display = 'none';
         loadingState.style.display = '';
