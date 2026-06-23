@@ -409,6 +409,7 @@
       };
 
       function showLoading(): void {
+        clearTimeout(debounceTimer);
         isProcessing = true;
         emptyState.style.display = 'none';
         loadingState.style.display = '';
@@ -553,20 +554,15 @@
         if (file) handleFile(file).catch(() => showError('Unexpected error.'));
       });
 
-      let dragCounter = 0;
-
       window.addEventListener('dragenter', (event) => {
         if (!event.dataTransfer?.types.includes('Files')) return;
         event.preventDefault();
-        dragCounter++;
         dropOverlay.classList.add('visible');
       });
 
       window.addEventListener('dragleave', (event) => {
         if (!event.dataTransfer?.types.includes('Files')) return;
-        if (dragCounter <= 0) { dragCounter = 0; return; }
-        dragCounter--;
-        if (dragCounter === 0) {
+        if (event.relatedTarget === null) {
           dropOverlay.classList.remove('visible');
         }
       });
@@ -579,7 +575,6 @@
 
       window.addEventListener('drop', (event) => {
         event.preventDefault();
-        dragCounter = 0;
         dropOverlay.classList.remove('visible');
         if (isProcessing) return;
         const file = event.dataTransfer?.files[0];
