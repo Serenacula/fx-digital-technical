@@ -42,13 +42,13 @@
 
 ---
 
-## 2026-06-23 — Alpha handling
+## 2026-06-23 — Transparent pixel handling
 
 **Node:** `root-0001`
 **Question:** `0005-colorspace`
-**Decision:** RGB only; skip only fully transparent pixels (alpha = 0). Semi-transparent pixels are processed normally.
-**Rationale:** Preserves semi-transparent pixels in results. A more nuanced threshold may be added as a future feature.
-**Affects:** `image-api-b2e3`
+**Decision:** Pixels with alpha = 0 are counted under a `"transparent"` sentinel key in the frequency map — they appear as a distinct colour entry in the chart, not excluded. Semi-transparent pixels (alpha > 0) are processed by their RGB channels as normal. `totalPixels` = `canvas.width × canvas.height` so all percentages sum to 100%.
+**Rationale:** Transparent pixels are real image content; hiding them loses information. The alpha threshold was considered as a user-configurable slider but deferred as feature creep.
+**Affects:** `image-api-b2e3`, `algorithm-a1f2`, `ui-c3d4`
 
 ---
 
@@ -94,8 +94,8 @@
 ## 2026-06-23 — totalPixels denominator
 
 **Node:** `algorithm-a1f2`
-**Decision:** `totalPixels` passed to `sortedColours` is the count of non-fully-transparent pixels (alpha > 0), not the canvas pixel count (`width × height`).
-**Rationale:** Percentages represent "of the visible image" rather than "of the full canvas including transparent areas." Percentages sum to 100% for any image.
+**Decision:** `totalPixels` = `canvas.width × canvas.height` — all pixels. Transparent pixels appear as a chart entry so all percentages sum to 100%.
+**Rationale:** Transparent pixels are now a counted entry, so they must be included in the denominator for percentages to be consistent.
 **Affects:** `image-api-b2e3`, `algorithm-a1f2`
 
 ---

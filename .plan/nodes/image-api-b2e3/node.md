@@ -23,8 +23,8 @@ Pure TypeScript module that takes a browser `File` object, draws it to an off-sc
 - Validate file size ≤ 16 MB; reject oversized files with a typed error
 - Draw to an off-screen `<canvas>` at the image's native dimensions using `drawImage()`
 - Call `ctx.getImageData()` to get `Uint8ClampedArray` (RGBA, 4 bytes per pixel)
-- Iterate pixels, skip pixels where alpha = 0, build frequency map: `Record<string, number>` keyed by `"r,g,b"`
-- Return `{ map: Record<string, number>, totalPixels: number }` where `totalPixels` is the count of non-fully-transparent pixels (alpha > 0)
+- Iterate all pixels: pixels where alpha = 0 are counted under the sentinel key `"transparent"`; all others are keyed by `"r,g,b"` using their RGB channels
+- Return `{ map: Record<string, number>, totalPixels: number }` where `totalPixels` is `canvas.width × canvas.height` (all pixels)
 
 **Out of scope:**
 - Any server communication
@@ -34,10 +34,10 @@ Pure TypeScript module that takes a browser `File` object, draws it to an off-sc
 
 - **Resize method**: No resize — canvas matches native image dimensions. Deferred; trivial to add later.
 - **Key format**: `"r,g,b"` string — consistent with algorithm module expectations.
-- **Alpha threshold**: 0 — only fully transparent pixels (alpha = 0) are excluded from map and `totalPixels`; semi-transparent pixels are processed normally.
+- **Transparent handling**: pixels with alpha = 0 are counted under the sentinel key `"transparent"` in the map. Semi-transparent pixels (alpha > 0) are processed by RGB channels as normal.
+- **totalPixels**: `canvas.width × canvas.height` — all pixels, so percentages (including transparent) sum to 100%.
 - **Accepted formats**: JPEG, PNG, WebP, AVIF, GIF, BMP — validated by `file.type`.
 - **File size limit**: 16 MB (`file.size > 16 * 1024 * 1024` → reject).
-- **totalPixels**: count of pixels where alpha > 0 (not `canvas.width × canvas.height`).
 - **Module location**: `src/lib/image-processor.ts`
 
 ## Children

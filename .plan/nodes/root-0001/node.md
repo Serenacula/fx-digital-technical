@@ -36,7 +36,7 @@ Top-level node for the Image Dominant Colour Finder. Owns project-wide constrain
 - **Image processing approach** (from `0002-image-lib`): Browser Canvas API — `drawImage` to an off-screen 300×300 canvas, then `getImageData()` for the pixel array. No server, no dependencies.
 - **Resize before analysis** (from `0003-resize`): No resize — canvas is drawn at the image's native dimensions. Can be added later if performance on large images becomes an issue (one-line change).
 - **Intermediate representation** (from `0004-intermediate`): After pixel extraction, build raw frequency map in JS and store in client state. Re-aggregate on slider change.
-- **Colour space** (from `0005-colorspace`): RGB only; ignore alpha channel. Fully transparent pixels (alpha = 0) are skipped; all others are processed regardless of alpha value.
+- **Colour space** (from `0005-colorspace`): RGB only for coloured pixels. Fully transparent pixels (alpha = 0) are counted as a separate "transparent" colour entry; all others are processed by RGB value regardless of alpha.
 - **Colour scheme** (from `0006-colourscheme`): Black on white.
 - **UI layout** (from `0007-layout`): Image top-left; controls (slider) below image; bar chart on right, vertically scrollable.
 - **Bar chart format** (from `0008-chart`): Each row = hex code label + colour bar sized by percentage + percentage text label. Sorted most → least dominant.

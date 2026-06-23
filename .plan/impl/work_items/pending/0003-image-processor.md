@@ -18,15 +18,15 @@ created: 2026-06-23
 3. Creates an `<img>` element and sets its `src` to `URL.createObjectURL(file)`
 4. Waits for `onload`, then draws the image to an off-screen `<canvas>` at the image's native dimensions
 5. Calls `ctx.getImageData(0, 0, width, height)` to get the `Uint8ClampedArray` (RGBA, 4 bytes per pixel)
-6. Iterates every pixel: skips pixels where `alpha === 0`; for the rest, builds a `RawMap` keyed by `"r,g,b"` and increments counts
-7. Returns `{ map, totalPixels }` where `totalPixels` is the count of pixels where alpha > 0 (not `canvas.width × canvas.height`)
+6. Iterates every pixel: pixels where `alpha === 0` increment the `"transparent"` sentinel key; all others increment the `"r,g,b"` key for their RGB channels
+7. Returns `{ map, totalPixels }` where `totalPixels` is `canvas.width × canvas.height` (all pixels, so percentages including transparent sum to 100%)
 8. Revokes the object URL after use
 
 The returned `map` uses bucket size 1 (raw pixel values, no quantization) — the algorithm module handles quantization separately.
 
 ## Test strategy sketch
 
-Unit tests: invalid MIME type and oversized file both throw `ValidationError` with correct messages. Manual browser smoke tests: 1×2 opaque image (one red, one blue) → two entries, totalPixels 2; fully transparent image → `{ map: {}, totalPixels: 0 }`; semi-transparent pixel (alpha > 0) → included in map; check `totalPixels` is non-transparent count not canvas area.
+Unit tests: invalid MIME type and oversized file both throw `ValidationError` with correct messages. Unit tests: invalid MIME type and oversized file both throw `ValidationError` with correct messages. Manual browser smoke tests: 1×2 opaque image (one red, one blue) → two RGB entries, totalPixels 2; fully transparent image → `{ map: { transparent: N }, totalPixels: N }`; mixed image → transparent entry + RGB entries, all percentages sum to 100%.
 
 ## Notes
 

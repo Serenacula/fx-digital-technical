@@ -17,8 +17,8 @@ PNG images can have transparent pixels. Without filtering, transparent white cou
 
 ## Answer
 
-RGB only. Skip only fully transparent pixels (alpha = 0); process all others regardless of alpha value.
+RGB only for coloured pixels. Pixels with alpha = 0 are counted as a separate "transparent" colour entry rather than excluded. Semi-transparent pixels (alpha > 0) are processed by their RGB channels. `totalPixels` = `canvas.width × canvas.height`, so all percentages sum to 100%.
 
 ## Rationale
 
-Preserves semi-transparent pixels in the results. A more nuanced threshold may be added later as a feature.
+Transparent pixels are real content in the image — excluding them hides information. Counting them as a distinct entry lets the user see what fraction of the image is transparent. The alpha threshold (default 0) was considered as a user-configurable slider but deferred as feature creep.

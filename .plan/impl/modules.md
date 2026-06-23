@@ -32,7 +32,7 @@ Exports: `quantize`, `reaggregate`, `toHex`, `sortedColours`, plus types `RawMap
 
 ## `image-processor`
 
-**Responsibility:** Browser-side module that accepts a `File` object from a file input, validates its type (JPEG, PNG, WebP, AVIF, GIF, BMP) and size (≤ 16 MB), draws it to an off-screen canvas at native dimensions, extracts pixel data via `getImageData()`, and returns a raw frequency map keyed by `"r,g,b"` strings plus a total pixel count. Skips fully transparent pixels (alpha = 0); all others are included.
+**Responsibility:** Browser-side module that accepts a `File` object from a file input, validates its type (JPEG, PNG, WebP, AVIF, GIF, BMP) and size (≤ 16 MB), draws it to an off-screen canvas at native dimensions, extracts pixel data via `getImageData()`, and returns a raw frequency map keyed by `"r,g,b"` strings plus a total pixel count. Pixels with alpha = 0 are counted under the sentinel key `"transparent"`; all others are keyed by `"r,g,b"`. `totalPixels` = `canvas.width × canvas.height`.
 **Implements spec nodes:** `image-api-b2e3`
 **Depends on modules:** `scaffold` (for project structure)
 **Path in repo:** `src/lib/image-processor.ts`

@@ -21,8 +21,8 @@ created: 2026-06-23
 
 **Right column (vertically scrollable):**
 - Bar chart container: one `<div>` per colour entry, each containing:
-  - A hex code label (e.g. `#ff0000`) in monospace
-  - A bar `<div>` with `background-color` set to the hex code and `width` set to `percentage%`
+  - A label in monospace: hex code (e.g. `#ff0000`) for normal entries, `transparent` for the transparent entry
+  - A bar `<div>` sized to `percentage%` width: normal entries use `background-color: hex`; transparent entry uses a CSS checkerboard pattern (alternating grey/white via `repeating-linear-gradient`) with a 1px black border
   - A percentage text label (e.g. `12.4%`)
 - **Empty state**: "Upload an image to see its dominant colours"
 - **Loading state**: "Analysing…"; file input + slider disabled
