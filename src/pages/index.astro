@@ -16,7 +16,7 @@
 
       body {
         font-family: system-ui, -apple-system, sans-serif;
-        background: #f5f5f5;
+        background: #355c7d;
         color: #111;
         min-height: 100vh;
         padding: 2rem;
@@ -27,6 +27,7 @@
         font-weight: 600;
         letter-spacing: -0.02em;
         margin-bottom: 1.5rem;
+        color: #f7f4ba;
       }
 
       .layout {
@@ -104,7 +105,7 @@
         flex-direction: column;
         align-items: center;
         gap: 0.5rem;
-        color: #bbb;
+        color: #c06c84;
         font-size: 0.8rem;
         pointer-events: none;
         user-select: none;
@@ -188,7 +189,45 @@
       .slider {
         width: 100%;
         cursor: pointer;
-        accent-color: #111;
+        -webkit-appearance: none;
+        appearance: none;
+        height: 4px;
+        border-radius: 2px;
+        outline: none;
+      }
+
+      .slider::-webkit-slider-runnable-track {
+        background: #6c5b7b;
+        height: 4px;
+        border-radius: 2px;
+      }
+
+      .slider::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: #f67280;
+        border: 2px solid #000;
+        cursor: pointer;
+        margin-top: -6px;
+      }
+
+      .slider::-moz-range-track {
+        background: #6c5b7b;
+        height: 4px;
+        border-radius: 2px;
+      }
+
+      .slider::-moz-range-thumb {
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: #f67280;
+        border: 2px solid #000;
+        cursor: pointer;
+        box-sizing: border-box;
       }
 
       .slider:disabled {
