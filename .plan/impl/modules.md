@@ -32,14 +32,14 @@ Exports: `quantize`, `reaggregate`, `toHex`, `sortedColours`, plus types `RawMap
 
 ## `image-processor`
 
-**Responsibility:** Browser-side module that accepts a `File` object from a file input, draws it to an off-screen canvas at native dimensions, extracts pixel data via `getImageData()`, and returns a raw frequency map keyed by `"r,g,b"` strings plus a total pixel count. Filters pixels with alpha < 128.
+**Responsibility:** Browser-side module that accepts a `File` object from a file input, validates its type (JPEG, PNG, WebP, AVIF, GIF, BMP) and size (≤ 16 MB), draws it to an off-screen canvas at native dimensions, extracts pixel data via `getImageData()`, and returns a raw frequency map keyed by `"r,g,b"` strings plus a total pixel count. Skips fully transparent pixels (alpha = 0); all others are included.
 **Implements spec nodes:** `image-api-b2e3`
 **Depends on modules:** `scaffold` (for project structure)
 **Path in repo:** `src/lib/image-processor.ts`
 
 ### Notes
 
-Returns `{ map: RawMap, totalPixels: number }`. The canvas is created off-screen (`document.createElement('canvas')`), drawn to, and discarded after use. This module is async (image loading via `URL.createObjectURL` + `onload`). No resize — native dimensions as per spec.
+Returns `{ map: RawMap, totalPixels: number }` where `totalPixels` is the non-transparent pixel count (not `width × height`). Throws a typed error on invalid type or oversized file before touching the canvas. The canvas is created off-screen (`document.createElement('canvas')`), drawn to, and discarded after use. This module is async (image loading via `URL.createObjectURL` + `onload`). No resize — native dimensions as per spec.
 
 ---
 

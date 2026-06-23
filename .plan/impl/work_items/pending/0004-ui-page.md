@@ -15,24 +15,26 @@ created: 2026-06-23
 
 **Left column:**
 - `<img>` element for image preview (hidden until a file is loaded)
-- `<input type="file" accept="image/*">` for upload
-- Quantization slider: `<input type="range" min="1" max="64" step="1" value="10">` with a numeric label showing the current value
+- `<input type="file" accept=".jpg,.jpeg,.png,.webp,.avif,.gif,.bmp,image/jpeg,image/png,image/webp,image/avif,image/gif,image/bmp">` for upload
+- "Colour grouping:" label followed by the current numeric value
+- Quantization slider: `<input type="range" min="1" max="64" step="1" value="10">`
 
 **Right column (vertically scrollable):**
 - Bar chart container: one `<div>` per colour entry, each containing:
-  - A hex code label (e.g. `#ff0000`)
-  - A bar `<div>` with `background-color` set to the hex code and `width` set to `percentage%` (relative to the container width)
-- Loading state while the image is being processed
-- Empty state before any image is uploaded
-- Error state if the file is invalid or processing fails
+  - A hex code label (e.g. `#ff0000`) in monospace
+  - A bar `<div>` with `background-color` set to the hex code and `width` set to `percentage%`
+  - A percentage text label (e.g. `12.4%`)
+- **Empty state**: "Upload an image to see its dominant colours"
+- **Loading state**: "Analysing…"; file input + slider disabled
+- **Error state**: specific message ("Unsupported file type. Please upload a JPEG, PNG, WebP, AVIF, GIF, or BMP." / "File is too large. Maximum size is 16 MB." / "Could not read image."); file input re-enabled; slider remains disabled
 
 **Client-side JS state (module-level variables in `<script>`):**
 - `rawMap: RawMap | null` — stored after upload, reused on slider changes
 - `totalPixels: number` — stored alongside rawMap
 
 **Event wiring:**
-- File input `change` → call `processImage(file)` → store result → call render pipeline
-- Slider `input` → call render pipeline (re-aggregation only, no image re-read)
+- File input `change` → validate + call `processImage(file)` → on success: store result, show preview, call render pipeline; on `ValidationError`: show specific error; on other error: show generic error
+- Slider `input` → debounced at 50 ms → call render pipeline (re-aggregation only, no image re-read)
 - Render pipeline: `reaggregate(rawMap, bucketSize)` → `sortedColours(...)` → rebuild chart DOM
 
 ## Test strategy sketch
