@@ -495,6 +495,9 @@
       }
 
       async function handleFile(file: File): Promise<void> {
+        if (import.meta.env.DEV) {
+          window.__lastResult = undefined;
+        }
         showLoading();
 
         const fileReaderPromise = new Promise<string>((resolve, reject) => {
@@ -576,7 +579,17 @@
       window.addEventListener('drop', (event) => {
         event.preventDefault();
         dropOverlay.classList.remove('visible');
-        if (isProcessing) return;
+        if (isProcessing) {
+          const hint = dropOverlay.querySelector('.drop-hint') as HTMLElement;
+          const originalText = hint.textContent;
+          hint.textContent = 'Processing… please wait';
+          dropOverlay.classList.add('visible');
+          setTimeout(() => {
+            dropOverlay.classList.remove('visible');
+            hint.textContent = originalText;
+          }, 1500);
+          return;
+        }
         const file = event.dataTransfer?.files[0];
         if (file) handleFile(file).catch(() => showError('Unexpected error.'));
       });
