@@ -1,0 +1,28 @@
+{
+  "name": "fx-digital-technical",
+  "type": "module",
+  "version": "0.0.1",
+  "scripts": {
+    "dev": "astro dev",
+    "start": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "astro": "astro",
+    "test:unit": "vitest run",
+    "test:e2e": "playwright test",
+    "test": "vitest run && playwright test"
+  },
+  "dependencies": {
+    "astro": "^5.1.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.49.0",
+    "@types/jsdom": "^28.0.3",
+    "@types/pngjs": "^6.0.5",
+    "jsdom": "^29.1.1",
+    "pngjs": "^7.0.0",
+    "sharp": "^0.34.0",
+    "tsx": "^4.19.2",
+    "vitest": "^3.0.0"
+  }
+}

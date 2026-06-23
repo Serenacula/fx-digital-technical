@@ -1,0 +1,356 @@
+---
+---
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Image Dominant Colour Finder</title>
+    <style>
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        font-family: sans-serif;
+        background: #fff;
+        color: #000;
+        min-height: 100vh;
+        padding: 1.5rem;
+      }
+
+      h1 {
+        font-size: 1.5rem;
+        margin-bottom: 1.5rem;
+      }
+
+      .layout {
+        display: grid;
+        grid-template-columns: 320px 1fr;
+        gap: 2rem;
+        height: calc(100vh - 6rem);
+      }
+
+      .left-column {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+      }
+
+      .preview-image {
+        display: none;
+        max-width: 100%;
+        max-height: 240px;
+        object-fit: contain;
+        border: 1px solid #ccc;
+      }
+
+      .preview-image.visible {
+        display: block;
+      }
+
+      .file-input {
+        display: block;
+        width: 100%;
+        cursor: pointer;
+      }
+
+      .slider-group {
+        display: flex;
+        flex-direction: column;
+        gap: 0.4rem;
+      }
+
+      .slider-label {
+        font-size: 0.9rem;
+      }
+
+      .slider {
+        width: 100%;
+        cursor: pointer;
+      }
+
+      .right-column {
+        overflow-y: auto;
+        border-left: 1px solid #ccc;
+        padding-left: 1.5rem;
+      }
+
+      .empty-state,
+      .loading-state,
+      .error-state {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 100%;
+        font-size: 1rem;
+        color: #555;
+      }
+
+      .error-state {
+        color: #c00;
+      }
+
+      .chart {
+        display: none;
+        flex-direction: column;
+        gap: 0.5rem;
+        padding-bottom: 1rem;
+      }
+
+      .chart.visible {
+        display: flex;
+      }
+
+      .chart-row {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        min-height: 1.8rem;
+      }
+
+      .colour-label {
+        font-family: monospace;
+        font-size: 0.85rem;
+        min-width: 6rem;
+        flex-shrink: 0;
+      }
+
+      .bar-container {
+        flex: 1;
+        height: 1.5rem;
+        background: #f0f0f0;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .bar {
+        height: 100%;
+        min-width: 1px;
+      }
+
+      .percentage-label {
+        font-size: 0.85rem;
+        min-width: 3.5rem;
+        flex-shrink: 0;
+        text-align: right;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Image Dominant Colour Finder</h1>
+    <div class="layout">
+      <div class="left-column">
+        <img
+          id="preview-image"
+          class="preview-image"
+          alt="Uploaded image preview"
+        />
+        <input
+          id="file-input"
+          class="file-input"
+          type="file"
+          accept=".jpg,.jpeg,.png,.webp,.avif,.bmp,image/jpeg,image/png,image/webp,image/avif,image/bmp"
+        />
+        <div class="slider-group">
+          <label class="slider-label" for="quantize-slider">
+            Colour grouping: <span id="slider-value">10</span>
+          </label>
+          <input
+            id="quantize-slider"
+            class="slider"
+            type="range"
+            min="1"
+            max="64"
+            step="1"
+            value="10"
+            disabled
+          />
+        </div>
+      </div>
+      <div class="right-column">
+        <div id="empty-state" class="empty-state">
+          Upload an image to see its dominant colours
+        </div>
+        <div id="loading-state" class="loading-state" style="display: none;">
+          Analysing…
+        </div>
+        <div id="error-state" class="error-state" style="display: none;"></div>
+        <div id="chart" class="chart"></div>
+      </div>
+    </div>
+
+    <script>
+      import { reaggregate, sortedColours } from '../lib/colour-algorithm.ts';
+      import { processImage, ValidationError } from '../lib/image-processor.ts';
+      import type { RawMap, ColourEntry } from '../lib/colour-algorithm.ts';
+
+      declare global {
+        interface Window {
+          __lastResult: { map: RawMap; totalPixels: number } | undefined;
+          __lastRendered: ColourEntry[] | undefined;
+          __recalcCount: number;
+          __delayProcessing: number | undefined;
+          __createObjectURLCount: number | undefined;
+        }
+      }
+
+      const fileInput = document.getElementById('file-input') as HTMLInputElement;
+      const previewImage = document.getElementById('preview-image') as HTMLImageElement;
+      const slider = document.getElementById('quantize-slider') as HTMLInputElement;
+      const sliderValue = document.getElementById('slider-value') as HTMLSpanElement;
+      const emptyState = document.getElementById('empty-state') as HTMLDivElement;
+      const loadingState = document.getElementById('loading-state') as HTMLDivElement;
+      const errorState = document.getElementById('error-state') as HTMLDivElement;
+      const chart = document.getElementById('chart') as HTMLDivElement;
+
+      let rawMap: RawMap | null = null;
+      let totalPixels: number = 0;
+      let debounceTimer: ReturnType<typeof setTimeout> | undefined;
+
+      if (import.meta.env.DEV) {
+        window.__recalcCount = 0;
+        window.__delayProcessing = undefined;
+        window.__lastResult = undefined;
+        window.__lastRendered = undefined;
+      }
+
+      function showEmpty(): void {
+        emptyState.style.display = '';
+        loadingState.style.display = 'none';
+        errorState.style.display = 'none';
+        chart.classList.remove('visible');
+      }
+
+      function showLoading(): void {
+        emptyState.style.display = 'none';
+        loadingState.style.display = '';
+        errorState.style.display = 'none';
+        chart.classList.remove('visible');
+        fileInput.disabled = true;
+        slider.disabled = true;
+      }
+
+      function showError(message: string): void {
+        emptyState.style.display = 'none';
+        loadingState.style.display = 'none';
+        errorState.style.display = '';
+        errorState.textContent = message;
+        chart.classList.remove('visible');
+        fileInput.disabled = false;
+        slider.disabled = true;
+        rawMap = null;
+        totalPixels = 0;
+      }
+
+      function renderChart(entries: ColourEntry[]): void {
+        chart.innerHTML = '';
+
+        for (const entry of entries) {
+          const row = document.createElement('div');
+          row.className = 'chart-row';
+
+          const label = document.createElement('span');
+          label.className = 'colour-label';
+          label.textContent = entry.isTransparent ? 'transparent' : entry.hex;
+          row.appendChild(label);
+
+          const barContainer = document.createElement('div');
+          barContainer.className = 'bar-container';
+
+          const bar = document.createElement('div');
+          bar.className = 'bar';
+          bar.style.width = `${entry.percentage}%`;
+
+          if (entry.isTransparent) {
+            bar.style.background =
+              'repeating-linear-gradient(45deg, #ccc 0px, #ccc 4px, #fff 4px, #fff 8px)';
+            bar.style.border = '1px solid black';
+          } else {
+            bar.style.backgroundColor = entry.hex;
+          }
+
+          barContainer.appendChild(bar);
+          row.appendChild(barContainer);
+
+          const percentLabel = document.createElement('span');
+          percentLabel.className = 'percentage-label';
+          percentLabel.textContent = `${entry.percentage.toFixed(1)}%`;
+          row.appendChild(percentLabel);
+
+          chart.appendChild(row);
+        }
+
+        emptyState.style.display = 'none';
+        loadingState.style.display = 'none';
+        errorState.style.display = 'none';
+        chart.classList.add('visible');
+        fileInput.disabled = false;
+        slider.disabled = false;
+
+        if (import.meta.env.DEV) {
+          window.__lastRendered = entries;
+          window.__recalcCount = window.__recalcCount + 1;
+        }
+      }
+
+      function runRenderPipeline(): void {
+        if (rawMap === null) return;
+        const bucketSize = parseInt(slider.value, 10);
+        const aggregated = reaggregate(rawMap, bucketSize);
+        const entries = sortedColours(aggregated, totalPixels);
+        renderChart(entries);
+      }
+
+      fileInput.addEventListener('change', async () => {
+        const file = fileInput.files?.[0];
+        if (!file) return;
+
+        showLoading();
+
+        if (import.meta.env.DEV) {
+          const delay = window.__delayProcessing;
+          if (delay !== undefined && delay > 0) {
+            await new Promise(resolve => setTimeout(resolve, delay));
+          }
+        }
+
+        try {
+          const result = await processImage(file);
+          rawMap = result.map;
+          totalPixels = result.totalPixels;
+
+          if (import.meta.env.DEV) {
+            window.__lastResult = { map: rawMap, totalPixels };
+          }
+
+          const objectUrl = URL.createObjectURL(file);
+          previewImage.src = objectUrl;
+          previewImage.classList.add('visible');
+
+          runRenderPipeline();
+        } catch (error) {
+          if (error instanceof ValidationError) {
+            showError(error.message);
+          } else {
+            showError('Could not read image.');
+          }
+          previewImage.classList.remove('visible');
+          previewImage.src = '';
+        }
+      });
+
+      slider.addEventListener('input', () => {
+        sliderValue.textContent = slider.value;
+
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(() => {
+          runRenderPipeline();
+        }, 50);
+      });
+    </script>
+  </body>
+</html>
