@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { join } from 'node:path';
+import { readFileSync } from 'node:fs';
 import './window-hooks.d.ts';
 
 const fixturesDir = join(process.cwd(), 'tests', 'fixtures');
@@ -246,5 +247,48 @@ test.describe('UI page — re-upload and recovery', () => {
     const percentages = await page.locator('.percentage-label').allTextContents();
     expect(percentages).toContain('100.0%');
     await expect(page.locator('#quantize-slider')).toBeEnabled();
+  });
+});
+
+test.describe('UI page — drag-and-drop', () => {
+  test('overlay appears on file dragenter and disappears on dragleave', async ({ page }) => {
+    await page.goto(appUrl);
+
+    await page.evaluate(() => {
+      const dataTransfer = new DataTransfer();
+      dataTransfer.items.add(new File([''], 'test.png', { type: 'image/png' }));
+      window.dispatchEvent(new DragEvent('dragenter', { bubbles: true, cancelable: true, dataTransfer }));
+    });
+    await expect(page.locator('#drop-overlay')).toHaveClass(/visible/);
+
+    await page.evaluate(() => {
+      window.dispatchEvent(new DragEvent('dragleave', { bubbles: true }));
+    });
+    await expect(page.locator('#drop-overlay')).not.toHaveClass(/visible/);
+  });
+
+  test('dropping a valid image file anywhere on the page processes it and renders the chart', async ({ page }) => {
+    await page.goto(appUrl);
+
+    const base64 = readFileSync(join(fixturesDir, '2x1-red-blue.png')).toString('base64');
+
+    await page.evaluate((base64Data) => {
+      const bytes = Uint8Array.from(atob(base64Data), char => char.charCodeAt(0));
+      const file = new File([bytes], '2x1-red-blue.png', { type: 'image/png' });
+      const dataTransfer = new DataTransfer();
+      dataTransfer.items.add(file);
+      window.dispatchEvent(new DragEvent('dragenter', { bubbles: true, cancelable: true, dataTransfer }));
+      window.dispatchEvent(new DragEvent('dragover', { bubbles: true, cancelable: true, dataTransfer }));
+      window.dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer }));
+    }, base64);
+
+    await page.waitForFunction(() => window.__lastResult !== undefined, { timeout: 5000 });
+
+    const labels = await page.locator('.colour-label').allTextContents();
+    expect(labels).toContain('#ff0000');
+    expect(labels).toContain('#0000ff');
+
+    const percentages = await page.locator('.percentage-label').allTextContents();
+    expect(percentages).toContain('50.0%');
   });
 });
