@@ -393,6 +393,7 @@
       let rawMap: RawMap | null = null;
       let totalPixels: number = 0;
       let debounceTimer: ReturnType<typeof setTimeout> | undefined;
+      let isProcessing: boolean = false;
 
       window.__recalcCount = 0;
       window.__delayProcessing = undefined;
@@ -408,6 +409,7 @@
       };
 
       function showLoading(): void {
+        isProcessing = true;
         emptyState.style.display = 'none';
         loadingState.style.display = '';
         errorState.style.display = 'none';
@@ -417,6 +419,7 @@
       }
 
       function showError(message: string): void {
+        isProcessing = false;
         emptyState.style.display = 'none';
         loadingState.style.display = 'none';
         errorState.style.display = '';
@@ -430,6 +433,7 @@
       }
 
       function renderChart(entries: ColourEntry[]): void {
+        isProcessing = false;
         chart.innerHTML = '';
 
         for (const entry of entries) {
@@ -491,21 +495,24 @@
       async function handleFile(file: File): Promise<void> {
         showLoading();
 
-        const previewUrl = await new Promise<string>((resolve) => {
+        const fileReaderPromise = new Promise<string>((resolve) => {
           const reader = new FileReader();
           reader.onload = () => resolve(reader.result as string);
           reader.readAsDataURL(file);
         });
 
-        if (import.meta.env.DEV) {
-          const delay = window.__delayProcessing;
-          if (delay !== undefined && delay > 0) {
-            await new Promise(resolve => setTimeout(resolve, delay));
+        const processImagePromise = (async () => {
+          if (import.meta.env.DEV) {
+            const delay = window.__delayProcessing;
+            if (delay !== undefined && delay > 0) {
+              await new Promise(resolve => setTimeout(resolve, delay));
+            }
           }
-        }
+          return processImage(file);
+        })();
 
         try {
-          const result = await processImage(file);
+          const [previewUrl, result] = await Promise.all([fileReaderPromise, processImagePromise]);
           rawMap = result.map;
           totalPixels = result.totalPixels;
 
@@ -550,7 +557,8 @@
         dropOverlay.classList.add('visible');
       });
 
-      window.addEventListener('dragleave', () => {
+      window.addEventListener('dragleave', (event) => {
+        if (!event.dataTransfer?.types.includes('Files')) return;
         if (dragCounter <= 0) { dragCounter = 0; return; }
         dragCounter--;
         if (dragCounter === 0) {
@@ -568,6 +576,7 @@
         event.preventDefault();
         dragCounter = 0;
         dropOverlay.classList.remove('visible');
+        if (isProcessing) return;
         const file = event.dataTransfer?.files[0];
         if (file) handleFile(file).catch(() => showError('Unexpected error.'));
       });
@@ -577,7 +586,11 @@
 
         clearTimeout(debounceTimer);
         debounceTimer = setTimeout(() => {
-          runRenderPipeline();
+          try {
+            runRenderPipeline();
+          } catch {
+            showError('Unexpected error.');
+          }
         }, 50);
       });
     </script>

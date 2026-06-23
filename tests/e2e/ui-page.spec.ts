@@ -262,7 +262,9 @@ test.describe('UI page — drag-and-drop', () => {
     await expect(page.locator('#drop-overlay')).toHaveClass(/visible/);
 
     await page.evaluate(() => {
-      window.dispatchEvent(new DragEvent('dragleave', { bubbles: true }));
+      const dataTransfer = new DataTransfer();
+      dataTransfer.items.add(new File([''], 'test.png', { type: 'image/png' }));
+      window.dispatchEvent(new DragEvent('dragleave', { bubbles: true, dataTransfer }));
     });
     await expect(page.locator('#drop-overlay')).not.toHaveClass(/visible/);
   });
