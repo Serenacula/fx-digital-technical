@@ -1,0 +1,9 @@
+{
+  "allowedTools": [
+    "Bash(npm run test:unit)",
+    "Bash(npm run test:e2e)",
+    "Bash(npm test)",
+    "Bash(npx vitest*)",
+    "Bash(npx playwright*)"
+  ]
+}
