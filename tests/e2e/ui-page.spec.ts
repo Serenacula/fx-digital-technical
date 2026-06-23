@@ -135,7 +135,7 @@ test.describe('UI page — slider', () => {
     await page.locator('#file-input').setInputFiles(join(fixturesDir, '2x1-red-blue.png'));
     await page.waitForFunction(() => window.__lastResult !== undefined, { timeout: 5000 });
 
-    const initialRendered = await page.evaluate(() => window.__lastRendered);
+    const initialRecalcCount = await page.evaluate(() => window.__recalcCount);
 
     await page.locator('#quantize-slider').fill('64');
     await page.locator('#quantize-slider').dispatchEvent('input');
@@ -144,8 +144,11 @@ test.describe('UI page — slider', () => {
     const urlCount = await page.evaluate(() => window.__createObjectURLCount);
     expect(urlCount).toBe(1);
 
-    const updatedRendered = await page.evaluate(() => window.__lastRendered);
-    expect(updatedRendered).not.toEqual(initialRendered);
+    // Verify the render pipeline ran (reaggregate was called) without re-reading the image.
+    // Note: for red+blue fixtures, quantized output is identical at all bucket sizes
+    // (0 and 255 survive any quantization unchanged), so content equality isn't a useful signal.
+    const updatedRecalcCount = await page.evaluate(() => window.__recalcCount);
+    expect(updatedRecalcCount).toBe(initialRecalcCount + 1);
 
     const labels = await page.locator('.colour-label').allTextContents();
     expect(labels).toContain('#ff0000');

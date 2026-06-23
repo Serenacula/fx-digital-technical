@@ -28,7 +28,9 @@ test.describe('image processor — pixel extraction', () => {
 
   test('semi-transparent pixel → processed as RGB, not transparent', async ({ page }) => {
     const result = await uploadAndGetResult(page, '1x1-semi-transparent.png');
-    expect(result.map).toEqual({ '100,150,200': 1 });
+    // Canvas pre-multiplies alpha on write and un-pre-multiplies on read, causing
+    // rounding: (150 × 128/255) rounds to 75, then (75 × 255/128) rounds to 149.
+    expect(result.map).toEqual({ '100,149,199': 1 });
     expect(result.totalPixels).toBe(1);
   });
 
