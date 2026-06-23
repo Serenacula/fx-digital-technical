@@ -393,6 +393,7 @@
       let rawMap: RawMap | null = null;
       let totalPixels: number = 0;
       let debounceTimer: ReturnType<typeof setTimeout> | undefined;
+      let busyHintTimer: ReturnType<typeof setTimeout> | undefined;
       let isProcessing: boolean = false;
 
       window.__recalcCount = 0;
@@ -576,17 +577,19 @@
         }
       });
 
+      const dropHint = dropOverlay.querySelector('.drop-hint') as HTMLElement;
+      const DROP_HINT_TEXT = dropHint?.textContent ?? 'Drop image here';
+
       window.addEventListener('drop', (event) => {
         event.preventDefault();
         dropOverlay.classList.remove('visible');
         if (isProcessing) {
-          const hint = dropOverlay.querySelector('.drop-hint') as HTMLElement;
-          const originalText = hint.textContent;
-          hint.textContent = 'Processing… please wait';
+          clearTimeout(busyHintTimer);
+          dropHint.textContent = 'Processing… please wait';
           dropOverlay.classList.add('visible');
-          setTimeout(() => {
+          busyHintTimer = setTimeout(() => {
             dropOverlay.classList.remove('visible');
-            hint.textContent = originalText;
+            dropHint.textContent = DROP_HINT_TEXT;
           }, 1500);
           return;
         }
