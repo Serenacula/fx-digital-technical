@@ -15,7 +15,7 @@ created: 2026-06-23
 
 **Left column:**
 - `<img>` element for image preview (hidden until a file is loaded)
-- `<input type="file" accept=".jpg,.jpeg,.png,.webp,.avif,.gif,.bmp,image/jpeg,image/png,image/webp,image/avif,image/gif,image/bmp">` for upload
+- `<input type="file" accept=".jpg,.jpeg,.png,.webp,.avif,.bmp,image/jpeg,image/png,image/webp,image/avif,image/bmp">` for upload
 - "Colour grouping:" label followed by the current numeric value
 - Quantization slider: `<input type="range" min="1" max="64" step="1" value="10">`
 
@@ -24,9 +24,9 @@ created: 2026-06-23
   - A label in monospace: hex code (e.g. `#ff0000`) for normal entries, `transparent` for the transparent entry
   - A bar `<div>` sized to `percentage%` width: normal entries use `background-color: hex`; transparent entry uses a CSS checkerboard pattern (alternating grey/white via `repeating-linear-gradient`) with a 1px black border
   - A percentage text label (e.g. `12.4%`)
-- **Empty state**: "Upload an image to see its dominant colours"
+- **Empty state**: "Upload an image to see its dominant colours"; slider disabled
 - **Loading state**: "Analysing…"; file input + slider disabled
-- **Error state**: specific message ("Unsupported file type. Please upload a JPEG, PNG, WebP, AVIF, GIF, or BMP." / "File is too large. Maximum size is 16 MB." / "Could not read image."); file input re-enabled; slider remains disabled
+- **Error state**: specific message ("Unsupported file type. Please upload a JPEG, PNG, WebP, AVIF, or BMP." / "File is too large. Maximum size is 16 MB." / "Could not read image."); file input re-enabled; slider remains disabled
 
 **Client-side JS state (module-level variables in `<script>`):**
 - `rawMap: RawMap | null` — stored after upload, reused on slider changes

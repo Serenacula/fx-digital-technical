@@ -36,7 +36,7 @@ Pure TypeScript module that takes a browser `File` object, draws it to an off-sc
 - **Key format**: `"r,g,b"` string — consistent with algorithm module expectations.
 - **Transparent handling**: pixels with alpha = 0 are counted under the sentinel key `"transparent"` in the map. Semi-transparent pixels (alpha > 0) are processed by RGB channels as normal.
 - **totalPixels**: `canvas.width × canvas.height` — all pixels, so percentages (including transparent) sum to 100%.
-- **Accepted formats**: JPEG, PNG, WebP, AVIF, GIF, BMP — validated by `file.type`.
+- **Accepted formats**: JPEG, PNG, WebP, AVIF, BMP — validated by `file.type`. GIF excluded (animated GIFs only yield the first frame; no support is better than misleading support).
 - **File size limit**: 16 MB (`file.size > 16 * 1024 * 1024` → reject).
 - **Module location**: `src/lib/image-processor.ts`
 

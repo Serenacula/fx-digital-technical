@@ -19,11 +19,11 @@ The single Astro page (`src/pages/index.astro`) with client-side interactivity. 
 
 **In scope:**
 - Two-column layout (left: image + controls; right: scrollable chart)
-- File input for image upload (JPEG, PNG, WebP, AVIF, GIF, BMP; 16 MB limit)
+- File input for image upload (JPEG, PNG, WebP, AVIF, BMP; 16 MB limit)
 - Image preview in the left column after upload
 - Quantization slider: range 1–64, step 1, default 10, labelled "Colour grouping:", debounced at 50 ms
 - Bar chart: each row = label + colour bar (width = percentage) + percentage text, sorted most → least. Transparent entry uses label "transparent", bar is a CSS checkerboard pattern (grey/white squares) with a black border
-- Empty state: "Upload an image to see its dominant colours" in chart column
+- Empty state: "Upload an image to see its dominant colours" in chart column; slider disabled
 - Loading state: file input + slider disabled; "Analysing…" in chart column
 - Error state: specific message in chart column (invalid type / oversized / processing failure); file input re-enabled
 

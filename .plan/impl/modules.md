@@ -13,7 +13,7 @@ updated: 2026-06-23
 
 ### Notes
 
-Astro scaffold via `npm create astro`. TypeScript strict mode set in `tsconfig.json`. The `base` option in `astro.config.mjs` handles GitHub Pages sub-path hosting — leave a clearly commented placeholder (`/REPO-NAME/`) for the user to fill in with their actual repo name before deploying.
+Astro scaffold via `npm create astro`. TypeScript strict mode set in `tsconfig.json`. The `base` option in `astro.config.mjs` handles GitHub Pages sub-path hosting — set to `'/fx-digital-technical/'` (repo name is known).
 
 ---
 
@@ -32,14 +32,14 @@ Exports: `quantize`, `reaggregate`, `toHex`, `sortedColours`, plus types `RawMap
 
 ## `image-processor`
 
-**Responsibility:** Browser-side module that accepts a `File` object from a file input, validates its type (JPEG, PNG, WebP, AVIF, GIF, BMP) and size (≤ 16 MB), draws it to an off-screen canvas at native dimensions, extracts pixel data via `getImageData()`, and returns a raw frequency map keyed by `"r,g,b"` strings plus a total pixel count. Pixels with alpha = 0 are counted under the sentinel key `"transparent"`; all others are keyed by `"r,g,b"`. `totalPixels` = `canvas.width × canvas.height`.
+**Responsibility:** Browser-side module that accepts a `File` object from a file input, validates its type (JPEG, PNG, WebP, AVIF, BMP) and size (≤ 16 MB), draws it to an off-screen canvas at native dimensions, extracts pixel data via `getImageData()`, and returns a raw frequency map keyed by `"r,g,b"` strings plus a total pixel count. Pixels with alpha = 0 are counted under the sentinel key `"transparent"`; all others are keyed by `"r,g,b"`. `totalPixels` = `canvas.width × canvas.height`.
 **Implements spec nodes:** `image-api-b2e3`
 **Depends on modules:** `scaffold` (for project structure)
 **Path in repo:** `src/lib/image-processor.ts`
 
 ### Notes
 
-Returns `{ map: RawMap, totalPixels: number }` where `totalPixels` is the non-transparent pixel count (not `width × height`). Throws a typed error on invalid type or oversized file before touching the canvas. The canvas is created off-screen (`document.createElement('canvas')`), drawn to, and discarded after use. This module is async (image loading via `URL.createObjectURL` + `onload`). No resize — native dimensions as per spec.
+Returns `{ map: RawMap, totalPixels: number }` where `totalPixels` is `canvas.width × canvas.height`. Throws a typed error on invalid type or oversized file before touching the canvas. The canvas is created off-screen (`document.createElement('canvas')`), drawn to, and discarded after use. This module is async (image loading via `URL.createObjectURL` + `onload`). No resize — native dimensions as per spec.
 
 ---
 

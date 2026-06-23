@@ -19,4 +19,4 @@ Manual smoke test: `npm run dev` starts without errors; `npm run build` produces
 
 ## Notes
 
-The `base` option in `astro.config.mjs` must be left as a clearly commented placeholder (e.g. `base: '/REPO-NAME/',  // TODO: replace with your GitHub repo name`) since the actual repo name is not known at build time. The build will produce correct relative paths once set.
+The `base` option in `astro.config.mjs` should be set to `'/fx-digital-technical/'` — the repo name is known. This is required for GitHub Pages sub-path hosting; without it, asset URLs break in production.

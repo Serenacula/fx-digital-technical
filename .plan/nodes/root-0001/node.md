@@ -19,7 +19,7 @@ Top-level node for the Image Dominant Colour Finder. Owns project-wide constrain
 
 **In scope:**
 - Single-page Astro web app
-- Image upload and pixel analysis (JPEG, PNG, WebP, AVIF, GIF, BMP; max 16 MB)
+- Image upload and pixel analysis (JPEG, PNG, WebP, AVIF, BMP; max 16 MB)
 - File type and size validation with user-facing error messages
 - Quantization slider with real-time re-aggregation (client-side, debounced)
 - Scrollable ranked bar chart of dominant colours with percentage labels

@@ -85,8 +85,8 @@
 ## 2026-06-23 — File validation
 
 **Node:** `image-api-b2e3`
-**Decision:** Accepted formats: JPEG, PNG, WebP, AVIF, GIF, BMP. Validated by MIME type (`file.type`). Maximum file size: 16 MB. Validation runs before any canvas work.
-**Rationale:** JPG and PNG required; WebP, AVIF, GIF, BMP are free wins via the Canvas API. SVG excluded (no fixed pixel grid). HEIC excluded (not cross-browser). 16 MB limit set conservatively; will be adjusted after performance testing.
+**Decision:** Accepted formats: JPEG, PNG, WebP, AVIF, BMP. Validated by MIME type (`file.type`). Maximum file size: 16 MB. Validation runs before any canvas work.
+**Rationale:** JPG and PNG required; WebP, AVIF, BMP are free wins via the Canvas API. GIF excluded — animated GIFs only yield the first frame, which is confusing with no indication; no support is better than misleading support. SVG excluded (no fixed pixel grid). HEIC excluded (not cross-browser). 16 MB limit set conservatively; will be adjusted after performance testing.
 **Affects:** `image-api-b2e3`, `ui-c3d4`
 
 ---
@@ -104,7 +104,7 @@
 
 **Node:** `ui-c3d4`
 **Decision:**
-- **Empty state**: Chart column shows "Upload an image to see its dominant colours."
+- **Empty state**: Chart column shows "Upload an image to see its dominant colours." Slider disabled (no data to aggregate).
 - **Loading state**: File input and slider disabled; chart column shows "Analysing…"; previous results cleared.
 - **Error state**: Chart column shows a specific error message (invalid type, oversized, or processing failure); file input re-enabled; slider remains disabled.
 - **Results state**: Chart populates; file input and slider enabled.
