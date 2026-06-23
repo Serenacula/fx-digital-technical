@@ -23,6 +23,9 @@ export function reaggregate(map: RawMap, bucketSize: number): AggregatedMap {
     }
 
     const parts = key.split(',');
+    if (parts.length !== 3) {
+      throw new Error(`Malformed colour key: "${key}"`);
+    }
     const red = quantize(parseInt(parts[0]!, 10), bucketSize);
     const green = quantize(parseInt(parts[1]!, 10), bucketSize);
     const blue = quantize(parseInt(parts[2]!, 10), bucketSize);
@@ -38,6 +41,8 @@ export function toHex(red: number, green: number, blue: number): string {
 }
 
 export function sortedColours(map: AggregatedMap, totalPixels: number): ColourEntry[] {
+  if (totalPixels <= 0) return [];
+
   const entries: ColourEntry[] = Object.entries(map).map(([key, count]) => {
     if (key === 'transparent') {
       return {
@@ -49,6 +54,9 @@ export function sortedColours(map: AggregatedMap, totalPixels: number): ColourEn
     }
 
     const parts = key.split(',');
+    if (parts.length !== 3) {
+      throw new Error(`Malformed colour key: "${key}"`);
+    }
     const red = parseInt(parts[0]!, 10);
     const green = parseInt(parts[1]!, 10);
     const blue = parseInt(parts[2]!, 10);

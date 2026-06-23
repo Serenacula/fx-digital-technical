@@ -394,12 +394,10 @@
       let totalPixels: number = 0;
       let debounceTimer: ReturnType<typeof setTimeout> | undefined;
 
-      if (import.meta.env.DEV) {
-        window.__recalcCount = 0;
-        window.__delayProcessing = undefined;
-        window.__lastResult = undefined;
-        window.__lastRendered = undefined;
-      }
+      window.__recalcCount = 0;
+      window.__delayProcessing = undefined;
+      window.__lastResult = undefined;
+      window.__lastRendered = undefined;
 
       const mimeTypeLabels: Record<string, string> = {
         'image/jpeg': 'JPEG',
@@ -493,6 +491,12 @@
       async function handleFile(file: File): Promise<void> {
         showLoading();
 
+        const previewUrl = await new Promise<string>((resolve) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.readAsDataURL(file);
+        });
+
         if (import.meta.env.DEV) {
           const delay = window.__delayProcessing;
           if (delay !== undefined && delay > 0) {
@@ -508,12 +512,6 @@
           if (import.meta.env.DEV) {
             window.__lastResult = { map: rawMap, totalPixels };
           }
-
-          const previewUrl = await new Promise<string>((resolve) => {
-            const reader = new FileReader();
-            reader.onload = () => resolve(reader.result as string);
-            reader.readAsDataURL(file);
-          });
 
           previewImage.onload = () => {
             const typeLabel = mimeTypeLabels[file.type] ?? file.type;
@@ -540,7 +538,7 @@
 
       fileInput.addEventListener('change', () => {
         const file = fileInput.files?.[0];
-        if (file) handleFile(file);
+        if (file) handleFile(file).catch(() => showError('Unexpected error.'));
       });
 
       let dragCounter = 0;
@@ -553,7 +551,7 @@
       });
 
       window.addEventListener('dragleave', () => {
-        if (dragCounter === 0) return;
+        if (dragCounter <= 0) { dragCounter = 0; return; }
         dragCounter--;
         if (dragCounter === 0) {
           dropOverlay.classList.remove('visible');
@@ -571,7 +569,7 @@
         dragCounter = 0;
         dropOverlay.classList.remove('visible');
         const file = event.dataTransfer?.files[0];
-        if (file) handleFile(file);
+        if (file) handleFile(file).catch(() => showError('Unexpected error.'));
       });
 
       slider.addEventListener('input', () => {

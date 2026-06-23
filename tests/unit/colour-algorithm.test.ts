@@ -61,6 +61,10 @@ describe('reaggregate', () => {
   it('empty map', () => {
     expect(reaggregate({}, 10)).toEqual({});
   });
+
+  it('throws on malformed colour key', () => {
+    expect(() => reaggregate({ 'bad-key': 1 }, 10)).toThrow('Malformed colour key: "bad-key"');
+  });
 });
 
 describe('toHex', () => {
@@ -120,5 +124,13 @@ describe('sortedColours', () => {
     expect(result).toHaveLength(1);
     expect(result[0]!.isTransparent).toBe(true);
     expect(result[0]!.percentage).toBe(100);
+  });
+
+  it('returns empty array when totalPixels is zero', () => {
+    expect(sortedColours({ 'transparent': 5 }, 0)).toEqual([]);
+  });
+
+  it('throws on malformed colour key', () => {
+    expect(() => sortedColours({ 'bad-key': 1 }, 10)).toThrow('Malformed colour key: "bad-key"');
   });
 });

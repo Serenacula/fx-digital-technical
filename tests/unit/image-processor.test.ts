@@ -34,12 +34,6 @@ describe('processImage validation', () => {
 
   it('does not reject file at exactly 16 MB for size', async () => {
     const file = new File([new ArrayBuffer(16 * 1024 * 1024)], 'limit.png', { type: 'image/png' });
-    try {
-      await processImage(file);
-    } catch (error) {
-      if (error instanceof ValidationError) {
-        expect(error.message).not.toBe('File is too large. Maximum size is 16 MB.');
-      }
-    }
+    await expect(processImage(file)).rejects.not.toBeInstanceOf(ValidationError);
   });
 });

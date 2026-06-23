@@ -57,7 +57,10 @@ export async function processImage(file: File): Promise<{ map: RawMap; totalPixe
       if (alpha === 0) {
         map['transparent'] = (map['transparent'] ?? 0) + 1;
       } else {
-        const key = `${red},${green},${blue}`;
+        const unpremultRed = Math.min(255, Math.round((red / alpha) * 255));
+        const unpremultGreen = Math.min(255, Math.round((green / alpha) * 255));
+        const unpremultBlue = Math.min(255, Math.round((blue / alpha) * 255));
+        const key = `${unpremultRed},${unpremultGreen},${unpremultBlue}`;
         map[key] = (map[key] ?? 0) + 1;
       }
     }
