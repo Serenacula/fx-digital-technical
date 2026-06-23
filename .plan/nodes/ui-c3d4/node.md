@@ -19,13 +19,13 @@ The single Astro page (`src/pages/index.astro`) with client-side interactivity. 
 
 **In scope:**
 - Two-column layout (left: image + controls; right: scrollable chart)
-- File input for image upload (triggers POST to `/api/analyse` on change)
+- File input for image upload (JPEG, PNG, WebP, AVIF, GIF, BMP; 16 MB limit)
 - Image preview in the left column after upload
-- Quantization slider (range TBD — see open thread)
-- Bar chart: each row = hex label + colour bar (width = percentage), sorted most → least
-- Loading state during API call
-- Empty state before any image is uploaded
-- Error state if upload fails or invalid file
+- Quantization slider: range 1–64, step 1, default 10, labelled "Colour grouping:", debounced at 50 ms
+- Bar chart: each row = hex label + colour bar (width = percentage) + percentage text, sorted most → least
+- Empty state: "Upload an image to see its dominant colours" in chart column
+- Loading state: file input + slider disabled; "Analysing…" in chart column
+- Error state: specific message in chart column (invalid type / oversized / processing failure); file input re-enabled
 
 **Out of scope:**
 - Drag-and-drop upload

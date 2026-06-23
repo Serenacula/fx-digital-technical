@@ -19,9 +19,10 @@ Top-level node for the Image Dominant Colour Finder. Owns project-wide constrain
 
 **In scope:**
 - Single-page Astro web app
-- Image upload and pixel analysis
-- Quantization slider with real-time re-aggregation (client-side)
-- Scrollable ranked bar chart of dominant colours
+- Image upload and pixel analysis (JPEG, PNG, WebP, AVIF, GIF, BMP; max 16 MB)
+- File type and size validation with user-facing error messages
+- Quantization slider with real-time re-aggregation (client-side, debounced)
+- Scrollable ranked bar chart of dominant colours with percentage labels
 
 **Out of scope:**
 - User accounts or persistent storage
@@ -38,7 +39,7 @@ Top-level node for the Image Dominant Colour Finder. Owns project-wide constrain
 - **Colour space** (from `0005-colorspace`): RGB only; ignore alpha channel. Fully transparent pixels (alpha = 0) are skipped; all others are processed regardless of alpha value.
 - **Colour scheme** (from `0006-colourscheme`): Black on white.
 - **UI layout** (from `0007-layout`): Image top-left; controls (slider) below image; bar chart on right, vertically scrollable.
-- **Bar chart format** (from `0008-chart`): Each row = hex code label + colour bar sized by percentage of total pixels. Sorted most → least dominant.
+- **Bar chart format** (from `0008-chart`): Each row = hex code label + colour bar sized by percentage + percentage text label. Sorted most → least dominant.
 
 ## Children
 
