@@ -1,7 +1,7 @@
 # Impl Plan Status
 
 _Last updated: 2026-06-23_
-_Stage:_ project-plan (impl planning) — awaiting user approval
+_Stage:_ approved → next stage is project-tests
 
 ## Modules
 
