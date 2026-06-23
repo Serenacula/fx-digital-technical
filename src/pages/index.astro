@@ -327,8 +327,12 @@
             window.__lastResult = { map: rawMap, totalPixels };
           }
 
-          const objectUrl = URL.createObjectURL(file);
-          previewImage.src = objectUrl;
+          const previewUrl = await new Promise<string>((resolve) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result as string);
+            reader.readAsDataURL(file);
+          });
+          previewImage.src = previewUrl;
           previewImage.classList.add('visible');
 
           runRenderPipeline();
