@@ -14,6 +14,10 @@
         padding: 0;
       }
 
+      html {
+        font-size: 150%;
+      }
+
       body {
         font-family: system-ui, -apple-system, sans-serif;
         background: #355c7d;
@@ -197,7 +201,11 @@
       }
 
       .slider::-webkit-slider-runnable-track {
-        background: #6c5b7b;
+        background: linear-gradient(
+          to right,
+          #6c5b7b var(--fill-pct, 14.29%),
+          #ddd var(--fill-pct, 14.29%)
+        );
         height: 4px;
         border-radius: 2px;
       }
@@ -215,6 +223,12 @@
       }
 
       .slider::-moz-range-track {
+        background: #ddd;
+        height: 4px;
+        border-radius: 2px;
+      }
+
+      .slider::-moz-range-progress {
         background: #6c5b7b;
         height: 4px;
         border-radius: 2px;
@@ -454,9 +468,15 @@
       window.__lastResult = undefined;
       window.__lastRendered = undefined;
 
+      function syncSliderFill(): void {
+        const pct = ((+slider.value - +slider.min) / (+slider.max - +slider.min)) * 100;
+        slider.style.setProperty('--fill-pct', `${pct}%`);
+      }
+
       slider.disabled = true;
       slider.value = '10';
       sliderValue.textContent = '10';
+      syncSliderFill();
 
       const mimeTypeLabels: Record<string, string> = {
         'image/jpeg': 'JPEG',
@@ -656,6 +676,7 @@
 
       slider.addEventListener('input', () => {
         sliderValue.textContent = slider.value;
+        syncSliderFill();
 
         clearTimeout(debounceTimer);
         debounceTimer = setTimeout(() => {
