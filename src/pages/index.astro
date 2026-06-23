@@ -401,6 +401,10 @@
       window.__lastResult = undefined;
       window.__lastRendered = undefined;
 
+      slider.disabled = true;
+      slider.value = '10';
+      sliderValue.textContent = '10';
+
       const mimeTypeLabels: Record<string, string> = {
         'image/jpeg': 'JPEG',
         'image/png': 'PNG',
