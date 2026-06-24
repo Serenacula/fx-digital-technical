@@ -357,13 +357,16 @@
                             justify-content: center;
                             transition: color 0.1s;
 
-                            &:hover { color: var(--colour-text); }
+                            &:hover { color: #005792; }
                         }
 
                         &.excluded {
                             opacity: 0.45;
 
-                            .exclude-btn { color: var(--colour-text); }
+                            .exclude-btn {
+                                color: var(--colour-text);
+                                &:hover { color: #b74242; }
+                            }
                         }
                     }
                 }
