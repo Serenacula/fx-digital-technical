@@ -1,9 +1,13 @@
 import { describe, it, expect } from 'vitest';
-import { quantize, reaggregateWithBlacklist, rawKeysForBucket, toHex, sortedColours } from '../../src/lib/colour-algorithm.ts';
-
-const noBlacklist = new Set<string>();
-const reaggregate = (map: Parameters<typeof reaggregateWithBlacklist>[0], bucketSize: number) =>
-  reaggregateWithBlacklist(map, bucketSize, noBlacklist).included;
+import {
+  quantize,
+  rawKeysForBucket,
+  buildExcludedKeys,
+  reaggregateExcluding,
+  toHex,
+  sortedColours,
+} from '../../src/lib/colour-algorithm.ts';
+import type { BlacklistEntry } from '../../src/lib/colour-algorithm.ts';
 
 describe('quantize', () => {
   it('identity at bucketSize 1', () => {
@@ -41,63 +45,6 @@ describe('quantize', () => {
   });
 });
 
-describe('reaggregateWithBlacklist (via reaggregate helper)', () => {
-  it('single key with bucketSize 1 is a no-op', () => {
-    expect(reaggregate({ '255,0,0': 5 }, 1)).toEqual({ '255,0,0': 5 });
-  });
-
-  it('distinct keys that do not collide after quantization', () => {
-    expect(reaggregate({ '10,0,0': 3, '100,0,0': 7 }, 10)).toEqual({ '10,0,0': 3, '100,0,0': 7 });
-  });
-
-  it('two keys that collide after quantization', () => {
-    expect(reaggregate({ '11,0,0': 3, '14,0,0': 7 }, 10)).toEqual({ '10,0,0': 10 });
-  });
-
-  it('transparent sentinel passes through unchanged', () => {
-    expect(reaggregate({ '11,0,0': 3, 'transparent': 42 }, 10)).toEqual({ '10,0,0': 3, 'transparent': 42 });
-  });
-
-  it('map with only transparent', () => {
-    expect(reaggregate({ 'transparent': 100 }, 32)).toEqual({ 'transparent': 100 });
-  });
-
-  it('empty map', () => {
-    expect(reaggregate({}, 10)).toEqual({});
-  });
-
-  it('throws on malformed colour key', () => {
-    expect(() => reaggregate({ 'bad-key': 1 }, 10)).toThrow('Malformed colour key: "bad-key"');
-  });
-
-  it('blacklisted raw key goes to excluded, not included', () => {
-    const map = { '255,0,0': 10, '0,0,255': 5 };
-    const bl = new Set(['255,0,0']);
-    const { included, excluded } = reaggregateWithBlacklist(map, 1, bl);
-    expect(included).toEqual({ '0,0,255': 5 });
-    expect(excluded).toEqual({ '255,0,0': 10 });
-  });
-
-  it('blacklisted transparent goes to excluded', () => {
-    const map = { 'transparent': 8, '0,0,0': 2 };
-    const bl = new Set(['transparent']);
-    const { included, excluded } = reaggregateWithBlacklist(map, 1, bl);
-    expect(included).toEqual({ '0,0,0': 2 });
-    expect(excluded).toEqual({ 'transparent': 8 });
-  });
-
-  it('mixed bucket (both blacklisted and non-blacklisted raw keys quantize to same bucket) stays in included', () => {
-    // At bucketSize=10, '11,0,0' and '14,0,0' both map to '10,0,0'
-    const map = { '11,0,0': 3, '14,0,0': 7 };
-    const bl = new Set(['11,0,0']);
-    const { included, excluded } = reaggregateWithBlacklist(map, 10, bl);
-    // '14,0,0' is not blacklisted → included gets '10,0,0': 7
-    // '11,0,0' is blacklisted → excluded would get '10,0,0': 3, but since it's also in included, it's removed from excluded
-    expect(included['10,0,0']).toBe(7);
-    expect(excluded['10,0,0']).toBeUndefined();
-  });
-});
-
 describe('rawKeysForBucket', () => {
   it('returns raw keys that map to the given quantized bucket', () => {
     const map = { '11,0,0': 3, '14,0,0': 7, '100,0,0': 2 };
@@ -118,6 +65,81 @@ describe('rawKeysForBucket', () => {
     const map = { 'transparent': 5, '10,0,0': 3 };
     const keys = rawKeysForBucket(map, '10,0,0', 10);
     expect(keys).not.toContain('transparent');
+  });
+});
+
+describe('buildExcludedKeys', () => {
+  const makeEntry = (quantizedKey: string, bucketSize: number): BlacklistEntry => ({
+    quantizedKey,
+    bucketSize,
+    hex: '#000000',
+    isTransparent: false,
+  });
+
+  it('returns empty set for empty blacklist', () => {
+    const result = buildExcludedKeys({ '255,0,0': 10 }, []);
+    expect(result.size).toBe(0);
+  });
+
+  it('collects raw keys for a blacklisted bucket', () => {
+    const map = { '11,0,0': 3, '14,0,0': 7, '100,0,0': 2 };
+    const result = buildExcludedKeys(map, [makeEntry('10,0,0', 10)]);
+    expect(result).toEqual(new Set(['11,0,0', '14,0,0']));
+  });
+
+  it('merges raw keys across multiple blacklist entries', () => {
+    const map = { '11,0,0': 3, '100,0,0': 2, 'transparent': 5 };
+    const result = buildExcludedKeys(map, [
+      makeEntry('10,0,0', 10),
+      { quantizedKey: 'transparent', bucketSize: 1, hex: 'transparent', isTransparent: true },
+    ]);
+    expect(result).toEqual(new Set(['11,0,0', 'transparent']));
+  });
+
+  it('banning at different quant levels anchors to that level', () => {
+    // '11,0,0' and '14,0,0' are both in the '10,0,0' bucket at bucketSize=10
+    // but only '11,0,0' is in the '10,0,0' bucket at bucketSize=5 (rounds to 10)
+    // and '14,0,0' rounds to 15 at bucketSize=5
+    const map = { '11,0,0': 3, '14,0,0': 7 };
+    const result = buildExcludedKeys(map, [makeEntry('10,0,0', 10)]);
+    expect(result.has('11,0,0')).toBe(true);
+    expect(result.has('14,0,0')).toBe(true);
+  });
+});
+
+describe('reaggregateExcluding', () => {
+  it('single key with bucketSize 1 and empty excluded is a no-op', () => {
+    expect(reaggregateExcluding({ '255,0,0': 5 }, 1, new Set())).toEqual({ '255,0,0': 5 });
+  });
+
+  it('distinct keys that do not collide after quantization', () => {
+    expect(reaggregateExcluding({ '10,0,0': 3, '100,0,0': 7 }, 10, new Set())).toEqual({ '10,0,0': 3, '100,0,0': 7 });
+  });
+
+  it('two keys that collide after quantization', () => {
+    expect(reaggregateExcluding({ '11,0,0': 3, '14,0,0': 7 }, 10, new Set())).toEqual({ '10,0,0': 10 });
+  });
+
+  it('transparent sentinel passes through unchanged', () => {
+    expect(reaggregateExcluding({ '11,0,0': 3, 'transparent': 42 }, 10, new Set())).toEqual({ '10,0,0': 3, 'transparent': 42 });
+  });
+
+  it('excluded raw key is skipped', () => {
+    const result = reaggregateExcluding({ '255,0,0': 10, '0,0,255': 5 }, 1, new Set(['255,0,0']));
+    expect(result).toEqual({ '0,0,255': 5 });
+  });
+
+  it('excluded transparent is skipped', () => {
+    const result = reaggregateExcluding({ 'transparent': 8, '0,0,0': 2 }, 1, new Set(['transparent']));
+    expect(result).toEqual({ '0,0,0': 2 });
+  });
+
+  it('empty map', () => {
+    expect(reaggregateExcluding({}, 10, new Set())).toEqual({});
+  });
+
+  it('throws on malformed colour key', () => {
+    expect(() => reaggregateExcluding({ 'bad-key': 1 }, 10, new Set())).toThrow('Malformed colour key: "bad-key"');
   });
 });
 

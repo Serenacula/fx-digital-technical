@@ -9,47 +9,16 @@ export interface ColourEntry {
   quantizedKey: string;
 }
 
+export interface BlacklistEntry {
+  quantizedKey: string;
+  bucketSize: number;
+  hex: string;
+  isTransparent: boolean;
+}
+
 export function quantize(value: number, bucketSize: number): number {
   const rounded = Math.round(value / bucketSize) * bucketSize;
   return Math.min(255, Math.max(0, rounded));
-}
-
-export function reaggregateWithBlacklist(
-  map: RawMap,
-  bucketSize: number,
-  blacklist: Set<string>,
-): { included: AggregatedMap; excluded: AggregatedMap } {
-  const included: AggregatedMap = {};
-  const excluded: AggregatedMap = {};
-
-  for (const [key, count] of Object.entries(map)) {
-    const target = blacklist.has(key) ? excluded : included;
-
-    if (key === 'transparent') {
-      target['transparent'] = (target['transparent'] ?? 0) + count;
-      continue;
-    }
-
-    const parts = key.split(',');
-    if (parts.length !== 3) throw new Error(`Malformed colour key: "${key}"`);
-    const red = quantize(parseInt(parts[0]!, 10), bucketSize);
-    const green = quantize(parseInt(parts[1]!, 10), bucketSize);
-    const blue = quantize(parseInt(parts[2]!, 10), bucketSize);
-
-    if (!Number.isFinite(red) || !Number.isFinite(green) || !Number.isFinite(blue)) {
-      throw new Error(`Malformed colour key: "${key}"`);
-    }
-
-    const quantizedKey = `${red},${green},${blue}`;
-    target[quantizedKey] = (target[quantizedKey] ?? 0) + count;
-  }
-
-  // A quantized bucket with both included and excluded pixels stays in included.
-  for (const key of Object.keys(excluded)) {
-    if (key in included) delete excluded[key];
-  }
-
-  return { included, excluded };
 }
 
 export function rawKeysForBucket(
@@ -73,6 +42,48 @@ export function rawKeysForBucket(
       quantize(parseInt(kp[2]!, 10), bucketSize) === qb
     );
   });
+}
+
+export function buildExcludedKeys(map: RawMap, blacklist: BlacklistEntry[]): Set<string> {
+  const excluded = new Set<string>();
+  for (const entry of blacklist) {
+    for (const key of rawKeysForBucket(map, entry.quantizedKey, entry.bucketSize)) {
+      excluded.add(key);
+    }
+  }
+  return excluded;
+}
+
+export function reaggregateExcluding(
+  map: RawMap,
+  bucketSize: number,
+  excludedKeys: Set<string>,
+): AggregatedMap {
+  const result: AggregatedMap = {};
+
+  for (const [key, count] of Object.entries(map)) {
+    if (excludedKeys.has(key)) continue;
+
+    if (key === 'transparent') {
+      result['transparent'] = (result['transparent'] ?? 0) + count;
+      continue;
+    }
+
+    const parts = key.split(',');
+    if (parts.length !== 3) throw new Error(`Malformed colour key: "${key}"`);
+    const red = quantize(parseInt(parts[0]!, 10), bucketSize);
+    const green = quantize(parseInt(parts[1]!, 10), bucketSize);
+    const blue = quantize(parseInt(parts[2]!, 10), bucketSize);
+
+    if (!Number.isFinite(red) || !Number.isFinite(green) || !Number.isFinite(blue)) {
+      throw new Error(`Malformed colour key: "${key}"`);
+    }
+
+    const quantizedKey = `${red},${green},${blue}`;
+    result[quantizedKey] = (result[quantizedKey] ?? 0) + count;
+  }
+
+  return result;
 }
 
 export function toHex(red: number, green: number, blue: number): string {

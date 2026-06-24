@@ -307,6 +307,14 @@
                             color: var(--colour-text);
                             min-width: 5.5rem;
                             flex-shrink: 0;
+                            display: flex;
+                            flex-direction: column;
+
+                            .colour-grouping {
+                                font-size: 0.68rem;
+                                color: var(--colour-hint);
+                                margin-top: 0.15rem;
+                            }
                         }
 
                         .bar-track {
@@ -479,7 +487,8 @@
 
         <script>
             import {
-                reaggregateWithBlacklist,
+                buildExcludedKeys,
+                reaggregateExcluding,
                 rawKeysForBucket,
                 sortedColours,
             } from "../lib/colour-algorithm.ts"
@@ -490,6 +499,7 @@
             import type {
                 RawMap,
                 ColourEntry,
+                BlacklistEntry,
             } from "../lib/colour-algorithm.ts"
 
             declare global {
@@ -544,7 +554,7 @@
 
             let rawMap: RawMap | null = null
             let totalPixels: number = 0
-            let blacklist: Set<string> = new Set()
+            let blacklist: BlacklistEntry[] = []
             let debounceTimer: ReturnType<typeof setTimeout> | undefined
             let busyHintTimer: ReturnType<typeof setTimeout> | undefined
             let isProcessing: boolean = false
@@ -604,53 +614,117 @@
             const EYE_OPEN_SVG = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`
             const EYE_CLOSED_SVG = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>`
 
-            function buildRow(entry: ColourEntry, isExcluded: boolean): HTMLElement {
-                const bucketSize = parseInt(slider.value, 10)
-                const row = document.createElement("div")
-                row.className = isExcluded ? "chart-row excluded" : "chart-row"
-
-                const label = document.createElement("span")
-                label.className = "colour-label"
-                label.textContent = entry.isTransparent ? "transparent" : entry.hex
-                row.appendChild(label)
-
+            function buildBar(
+                hex: string,
+                isTransparent: boolean,
+                pct: number,
+            ): HTMLElement {
                 const barContainer = document.createElement("div")
                 barContainer.className = "bar-track"
                 const bar = document.createElement("div")
                 bar.className = "bar"
-                bar.style.width = `${entry.percentage}%`
-                if (entry.isTransparent) {
+                bar.style.width = `${pct}%`
+                if (isTransparent) {
                     bar.style.background =
                         "repeating-linear-gradient(45deg, #ccc 0px, #ccc 4px, #fff 4px, #fff 8px)"
                     bar.style.border = "1px solid black"
                 } else {
-                    bar.style.backgroundColor = entry.hex
+                    bar.style.backgroundColor = hex
                 }
                 barContainer.appendChild(bar)
-                row.appendChild(barContainer)
+                return barContainer
+            }
+
+            function buildIncludedRow(entry: ColourEntry): HTMLElement {
+                const row = document.createElement("div")
+                row.className = "chart-row"
+
+                const label = document.createElement("div")
+                label.className = "colour-label"
+                label.textContent = entry.isTransparent ? "transparent" : entry.hex
+                row.appendChild(label)
+
+                row.appendChild(buildBar(entry.hex, entry.isTransparent, entry.percentage))
 
                 const percentLabel = document.createElement("span")
                 percentLabel.className = "percentage-label"
-                percentLabel.textContent = isExcluded
-                    ? "—"
-                    : `${entry.percentage.toFixed(1)}%`
+                percentLabel.textContent = `${entry.percentage.toFixed(1)}%`
                 row.appendChild(percentLabel)
 
                 const excludeBtn = document.createElement("button")
                 excludeBtn.className = "exclude-btn"
-                excludeBtn.innerHTML = isExcluded ? EYE_CLOSED_SVG : EYE_OPEN_SVG
-                excludeBtn.title = isExcluded ? "Re-include colour" : "Exclude colour"
+                excludeBtn.innerHTML = EYE_OPEN_SVG
+                excludeBtn.title = "Exclude colour"
                 excludeBtn.addEventListener("click", () => {
-                    const keys = rawKeysForBucket(
-                        rawMap!,
-                        entry.quantizedKey,
-                        bucketSize,
+                    const bucketSize = parseInt(slider.value, 10)
+                    const duplicate = blacklist.some(
+                        e =>
+                            e.quantizedKey === entry.quantizedKey &&
+                            e.bucketSize === bucketSize,
                     )
-                    if (isExcluded) {
-                        keys.forEach(key => blacklist.delete(key))
-                    } else {
-                        keys.forEach(key => blacklist.add(key))
+                    if (!duplicate) {
+                        blacklist.push({
+                            quantizedKey: entry.quantizedKey,
+                            bucketSize,
+                            hex: entry.hex,
+                            isTransparent: entry.isTransparent,
+                        })
                     }
+                    try {
+                        runRenderPipeline()
+                    } catch {
+                        showError("Unexpected error.")
+                    }
+                })
+                row.appendChild(excludeBtn)
+
+                return row
+            }
+
+            function buildExcludedRow(entry: BlacklistEntry): HTMLElement {
+                const row = document.createElement("div")
+                row.className = "chart-row excluded"
+
+                const label = document.createElement("div")
+                label.className = "colour-label"
+                const hexLine = document.createElement("span")
+                hexLine.textContent = entry.isTransparent ? "transparent" : entry.hex
+                label.appendChild(hexLine)
+                const groupingLine = document.createElement("span")
+                groupingLine.className = "colour-grouping"
+                groupingLine.textContent = `grouping: ${entry.bucketSize}`
+                label.appendChild(groupingLine)
+                row.appendChild(label)
+
+                const keys = rawKeysForBucket(
+                    rawMap!,
+                    entry.quantizedKey,
+                    entry.bucketSize,
+                )
+                const count = keys.reduce(
+                    (sum, key) => sum + (rawMap![key] ?? 0),
+                    0,
+                )
+                const pct = totalPixels > 0 ? (count / totalPixels) * 100 : 0
+                row.appendChild(buildBar(entry.hex, entry.isTransparent, pct))
+
+                const percentLabel = document.createElement("span")
+                percentLabel.className = "percentage-label"
+                percentLabel.textContent = "—"
+                row.appendChild(percentLabel)
+
+                const excludeBtn = document.createElement("button")
+                excludeBtn.className = "exclude-btn"
+                excludeBtn.innerHTML = EYE_CLOSED_SVG
+                excludeBtn.title = "Re-include colour"
+                excludeBtn.addEventListener("click", () => {
+                    blacklist = blacklist.filter(
+                        e =>
+                            !(
+                                e.quantizedKey === entry.quantizedKey &&
+                                e.bucketSize === entry.bucketSize
+                            ),
+                    )
                     try {
                         runRenderPipeline()
                     } catch {
@@ -664,16 +738,16 @@
 
             function renderChart(
                 included: ColourEntry[],
-                excluded: ColourEntry[],
+                excluded: BlacklistEntry[],
             ): void {
                 isProcessing = false
                 chart.innerHTML = ""
 
                 for (const entry of included) {
-                    chart.appendChild(buildRow(entry, false))
+                    chart.appendChild(buildIncludedRow(entry))
                 }
                 for (const entry of excluded) {
-                    chart.appendChild(buildRow(entry, true))
+                    chart.appendChild(buildExcludedRow(entry))
                 }
 
                 emptyState.style.display = "none"
@@ -693,22 +767,25 @@
                 if (rawMap === null) return
                 const bucketSize = parseInt(slider.value, 10)
                 if (!Number.isFinite(bucketSize) || bucketSize < 1) return
-                const { included: includedMap, excluded: excludedMap } =
-                    reaggregateWithBlacklist(rawMap, bucketSize, blacklist)
+                const excludedKeys = buildExcludedKeys(rawMap, blacklist)
+                const includedMap = reaggregateExcluding(
+                    rawMap,
+                    bucketSize,
+                    excludedKeys,
+                )
                 const includedTotal = Object.values(includedMap).reduce(
                     (sum, count) => sum + count,
                     0,
                 )
                 const includedEntries = sortedColours(includedMap, includedTotal)
-                const excludedEntries = sortedColours(excludedMap, totalPixels)
-                renderChart(includedEntries, excludedEntries)
+                renderChart(includedEntries, blacklist)
             }
 
             async function handleFile(file: File): Promise<void> {
                 if (import.meta.env.DEV) {
                     window.__lastResult = undefined
                 }
-                blacklist.clear()
+                blacklist = []
                 showLoading()
 
                 const fileReaderPromise = new Promise<string>(
