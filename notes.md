@@ -1,5 +1,7 @@
 # Process Notes
 
+## Challenge 1
+
 Initial thoughts: firstly, the challenge is something I don't know much about. My initial step is to get an idea of the problem. I ask Claude to give me a sense of how it would complete it: its understanding of the problem, and the packages it think would be suitable specifically.
 
 I have pre-specified using typescript and astro, since I believe this is a fairly straight-forward stack for the problem. I'd considered making it a rust CLI application, which has the advantage of not needing a UI, but the requirements stated I use my most familiar language, so typescript it is. It also makes it easier to add a UI.
@@ -50,8 +52,18 @@ Process note:
     - Once the basics were there, I made adjustments according to what I'd consider an intuitive UI, and stuff missed:
         - Needed some basic adjustments to make it mobile friendly.
         - The description "Colour Grouping" to describe the quant is not intuitive. Need to think of a better way to describe this.
-        - Adjusted how images are uploaded to be friendlier
-        - Added a drag-and-drop feature, since I felt like it was missing
+        - Adjusted how images are uploaded to be friendlier.
+        - Added a drag-and-drop feature, since I felt like it was missing.
 
--   9. Bug hunting
+9. Bug hunting
     - Ran my bug-loop skill, to identify and chase down bugs the AI can find.
+    - After fixing those bugs, I checked in person for bugs, found a couple more to fix.
+
+10. Second refinement:
+    - Adjusting the padding of the image to match other areas
+    - Show supported image formats somewhere
+    - Adjust colours
+
+---
+
+## Challenge 2
