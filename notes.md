@@ -67,3 +67,15 @@ Process note:
 ---
 
 ## Challenge 2
+
+For this part I decided to go for the "ignore certain colours challenge". This is mostly because I think the efficiency is already quite good so I'm not gonna see much gain from that, and the X dominant features was already part of how I designed the first challenge, so doesn't really make sense to do.
+
+Initial thoughts on how to implement were:
+
+1. Set it up such that certain common colours could be removed via tickbox
+2. A blacklist panel, that let you select colour ranges to remove
+3. An 'ignore' function, that removes certain colours from the percentage calculations and moves them to the bottom of the barchart greyed out
+
+All three implementation styles had issues. 1 leaves our definition of 'white' vague, and ends up with a complicated UI where the user is defining white via lightness and saturation. 2 felt like it was overcomplicating the problem. 3 does not leave a good intuitive solution for how to handle quant changes.
+
+I ended up going with 3, since I figured it has the nicest UI, and isn't too difficult to solve.
