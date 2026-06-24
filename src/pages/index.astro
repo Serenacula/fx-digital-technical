@@ -361,11 +361,17 @@
                         }
 
                         &.excluded {
-                            opacity: 0.45;
+                            .colour-label,
+                            .bar-track,
+                            .percentage-label { opacity: 0.45; }
 
                             .exclude-btn {
                                 color: var(--colour-text);
-                                &:hover { color: #b74242; }
+                                opacity: 0.45;
+                                &:hover {
+                                    color: #b74242;
+                                    opacity: 1;
+                                }
                             }
                         }
                     }
