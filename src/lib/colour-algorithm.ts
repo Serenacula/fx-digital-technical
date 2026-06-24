@@ -45,6 +45,40 @@ export function toHex(red: number, green: number, blue: number): string {
   return '#' + [red, green, blue].map(channel => channel.toString(16).padStart(2, '0')).join('');
 }
 
+export interface FilterOptions {
+  ignoreWhite: boolean;
+  ignoreBlack: boolean;
+  ignoreTransparent: boolean;
+}
+
+function rgbToLightness(red: number, green: number, blue: number): number {
+  return (Math.max(red, green, blue) + Math.min(red, green, blue)) / 510;
+}
+
+export function filterAggregated(map: AggregatedMap, options: FilterOptions): AggregatedMap {
+  const result: AggregatedMap = {};
+
+  for (const [key, count] of Object.entries(map)) {
+    if (key === 'transparent') {
+      if (!options.ignoreTransparent) result[key] = count;
+      continue;
+    }
+
+    const parts = key.split(',');
+    const red = parseInt(parts[0]!, 10);
+    const green = parseInt(parts[1]!, 10);
+    const blue = parseInt(parts[2]!, 10);
+    const lightness = rgbToLightness(red, green, blue);
+
+    if (options.ignoreWhite && lightness > 0.9) continue;
+    if (options.ignoreBlack && lightness < 0.1) continue;
+
+    result[key] = count;
+  }
+
+  return result;
+}
+
 export function sortedColours(map: AggregatedMap, totalPixels: number): ColourEntry[] {
   if (totalPixels <= 0) return [];
 

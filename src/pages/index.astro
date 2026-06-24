@@ -250,6 +250,38 @@
                         color: var(--colour-hint);
                     }
                 }
+
+                .filter-group {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 0.35rem;
+                    padding-top: 0.25rem;
+                    border-top: 1px solid #ddd;
+
+                    .filter-label {
+                        font-size: 0.85rem;
+                        color: var(--colour-subtext-controls);
+                        margin-bottom: 0.1rem;
+                    }
+
+                    .filter-option {
+                        display: flex;
+                        align-items: center;
+                        gap: 0.5rem;
+                        font-size: 0.85rem;
+                        color: var(--colour-text);
+                        cursor: pointer;
+                        user-select: none;
+
+                        input[type="checkbox"] {
+                            width: 15px;
+                            height: 15px;
+                            flex-shrink: 0;
+                            accent-color: var(--colour-slider-fill);
+                            cursor: pointer;
+                        }
+                    }
+                }
             }
 
             .right-column {
@@ -416,6 +448,21 @@
                             <span>Broadly merged</span>
                         </div>
                     </div>
+                    <div class="filter-group">
+                        <span class="filter-label">Ignore colours</span>
+                        <label class="filter-option">
+                            <input type="checkbox" id="filter-white" />
+                            White (lightness &gt; 90%)
+                        </label>
+                        <label class="filter-option">
+                            <input type="checkbox" id="filter-black" />
+                            Black (lightness &lt; 10%)
+                        </label>
+                        <label class="filter-option">
+                            <input type="checkbox" id="filter-transparent" />
+                            Transparent
+                        </label>
+                    </div>
                 </div>
             </div>
             <div class="right-column">
@@ -452,6 +499,7 @@
         <script>
             import {
                 reaggregate,
+                filterAggregated,
                 sortedColours,
             } from "../lib/colour-algorithm.ts"
             import {
@@ -512,6 +560,15 @@
                 "error-state",
             ) as HTMLDivElement
             const chart = document.getElementById("chart") as HTMLDivElement
+            const filterWhite = document.getElementById(
+                "filter-white",
+            ) as HTMLInputElement
+            const filterBlack = document.getElementById(
+                "filter-black",
+            ) as HTMLInputElement
+            const filterTransparent = document.getElementById(
+                "filter-transparent",
+            ) as HTMLInputElement
 
             let rawMap: RawMap | null = null
             let totalPixels: number = 0
@@ -630,7 +687,16 @@
                 const bucketSize = parseInt(slider.value, 10)
                 if (!Number.isFinite(bucketSize) || bucketSize < 1) return
                 const aggregated = reaggregate(rawMap, bucketSize)
-                const entries = sortedColours(aggregated, totalPixels)
+                const filtered = filterAggregated(aggregated, {
+                    ignoreWhite: filterWhite.checked,
+                    ignoreBlack: filterBlack.checked,
+                    ignoreTransparent: filterTransparent.checked,
+                })
+                const filteredTotal = Object.values(filtered).reduce(
+                    (sum, count) => sum + count,
+                    0,
+                )
+                const entries = sortedColours(filtered, filteredTotal)
                 renderChart(entries)
             }
 
@@ -761,6 +827,16 @@
                     }
                 }, 50)
             })
+
+            for (const checkbox of [filterWhite, filterBlack, filterTransparent]) {
+                checkbox.addEventListener("change", () => {
+                    try {
+                        runRenderPipeline()
+                    } catch {
+                        showError("Unexpected error.")
+                    }
+                })
+            }
         </script>
     </body>
 </html>
