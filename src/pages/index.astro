@@ -1,655 +1,764 @@
 ---
+
 ---
+
 <html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Image Dominant Colour Finder</title>
-    <style is:global>
-      *, *::before, *::after {
-        box-sizing: border-box;
-        margin: 0;
-        padding: 0;
-      }
-
-      body {
-        font-family: system-ui, -apple-system, sans-serif;
-        background: #355c7d;
-        color: #111;
-        min-height: 100vh;
-        padding: 2rem;
-
-        @media (max-width: 639px) { padding: 1.25rem; }
-      }
-
-      h1 {
-        font-size: 2.1rem;
-        font-weight: 600;
-        letter-spacing: -0.02em;
-        margin-bottom: 1.5rem;
-        color: #f7f4ba;
-      }
-
-      .layout {
-        display: grid;
-        grid-template-columns: 340px 1fr;
-        gap: 1.5rem;
-        height: calc(100vh - 6.5rem);
-
-        @media (max-width: 639px) {
-          grid-template-columns: 1fr;
-          height: auto;
-        }
-      }
-
-      .left-column {
-        display: flex;
-        flex-direction: column;
-        gap: 1rem;
-        min-height: 0;
-      }
-
-      .preview-card {
-        border: 1px solid #ddd;
-        border-radius: 6px;
-        overflow: hidden;
-        flex-shrink: 0;
-        transition: border-color 0.15s;
-
-        &:hover { border-color: #aaa; }
-
-        .preview-area {
-          width: 100%;
-          aspect-ratio: 1;
-          padding: 1rem;
-          background: #fafafa;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          overflow: hidden;
-          cursor: pointer;
-          transition: background 0.15s;
-
-          &:hover { background: #f2f2f2; }
-
-          .preview-image {
-            display: none;
-            width: 100%;
-            height: 100%;
-            object-fit: contain;
-
-            &.visible {
-              display: block;
-              & ~ .preview-placeholder { display: none; }
-            }
-          }
-
-          .preview-placeholder {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 0.5rem;
-            color: #bbb;
-            font-size: 0.8rem;
-            pointer-events: none;
-            user-select: none;
-          }
-        }
-
-        .image-details {
-          padding: 0.5rem 0.75rem;
-          border-top: 1px solid #ddd;
-          background: #fff;
-
-          .detail-name {
-            font-size: 0.85rem;
-            font-weight: 500;
-            color: #111;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            min-height: 1.2em;
-          }
-
-          .detail-meta {
-            font-size: 0.78rem;
-            color: #999;
-            margin-top: 0.2rem;
-            min-height: 1.2em;
-          }
-        }
-      }
-
-      .controls {
-        background: #fff;
-        border: 1px solid #ddd;
-        border-radius: 6px;
-        padding: 1rem;
-        display: flex;
-        flex-direction: column;
-        gap: 0.75rem;
-        flex: 1;
-        min-height: 0;
-
-        .slider-group {
-          display: flex;
-          flex-direction: column;
-          gap: 0.4rem;
-
-          .slider-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: baseline;
-            font-size: 0.85rem;
-            color: #555;
-
-            strong {
-              color: #111;
-              font-weight: 600;
-              font-variant-numeric: tabular-nums;
-            }
-          }
-
-          .slider {
-            width: 100%;
-            cursor: pointer;
-            -webkit-appearance: none;
-            appearance: none;
-            height: 4px;
-            border-radius: 2px;
-            outline: none;
-
-            &::-webkit-slider-runnable-track {
-              background: linear-gradient(
-                to right,
-                #c06c84 var(--fill-pct, 14.29%),
-                #ddd var(--fill-pct, 14.29%)
-              );
-              height: 4px;
-              border-radius: 2px;
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Image Dominant Colour Finder</title>
+        <style is:global>
+            :root {
+                --colour-title: #f7f4ba;
+                --colour-text: #111;
+                --colour-subtext-image: #999;
+                --colour-subtext-controls: #555;
+                --colour-hint: #bbb;
+                --colour-bg: #355c7d;
+                --colour-panel-bg: #fff;
+                --colour-image-area: #fafafa;
+                --colour-image-area-hover: #f2f2f2;
+                --colour-slider-fill: #c06c84;
+                --colour-slider-track: #ddd;
+                --colour-slider-handle: #f67280;
+                --colour-bar-track: #f0f0f0;
             }
 
-            &::-webkit-slider-thumb {
-              -webkit-appearance: none;
-              appearance: none;
-              width: 16px;
-              height: 16px;
-              border-radius: 50%;
-              background: #f67280;
-              border: 2px solid #000;
-              cursor: pointer;
-              margin-top: -6px;
+            *,
+            *::before,
+            *::after {
+                box-sizing: border-box;
+                margin: 0;
+                padding: 0;
             }
 
-            &::-moz-range-track {
-              background: #ddd;
-              height: 4px;
-              border-radius: 2px;
+            body {
+                font-family:
+                    system-ui,
+                    -apple-system,
+                    sans-serif;
+                background: var(--colour-bg);
+                color: var(--colour-text);
+                min-height: 100vh;
+                padding: 2rem;
+
+                @media (max-width: 639px) {
+                    padding: 1.25rem;
+                }
             }
 
-            &::-moz-range-progress {
-              background: #c06c84;
-              height: 4px;
-              border-radius: 2px;
+            h1 {
+                font-size: 2.1rem;
+                font-weight: 600;
+                letter-spacing: -0.02em;
+                margin-bottom: 1.5rem;
+                color: var(--colour-title);
             }
 
-            &::-moz-range-thumb {
-              width: 16px;
-              height: 16px;
-              border-radius: 50%;
-              background: #f67280;
-              border: 2px solid #000;
-              cursor: pointer;
-              box-sizing: border-box;
+            .layout {
+                display: grid;
+                grid-template-columns: 340px 1fr;
+                gap: 1.5rem;
+                height: calc(100vh - 6.5rem);
+
+                @media (max-width: 639px) {
+                    grid-template-columns: 1fr;
+                    height: auto;
+                }
             }
 
-            &:disabled {
-              opacity: 0.4;
-              cursor: not-allowed;
-            }
-          }
-
-          .slider-hints {
-            display: flex;
-            justify-content: space-between;
-            font-size: 0.72rem;
-            color: #bbb;
-          }
-        }
-      }
-
-      .right-column {
-        background: #fff;
-        border: 1px solid #ddd;
-        border-radius: 6px;
-        padding: 1.25rem 1.5rem;
-        overflow-y: auto;
-        min-height: 0;
-
-        @media (max-width: 639px) {
-          overflow-y: visible;
-          min-height: 300px;
-        }
-
-        .empty-state,
-        .loading-state {
-          height: 100%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-size: 0.95rem;
-          color: #999;
-
-          @media (max-width: 639px) { height: 200px; }
-        }
-
-        .error-state {
-          padding: 1rem 0;
-          font-size: 0.9rem;
-          color: #c00;
-        }
-
-        .chart {
-          display: none;
-          flex-direction: column;
-          gap: 0.6rem;
-
-          &.visible { display: flex; }
-
-          .chart-row {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-
-            .colour-label {
-              font-family: ui-monospace, 'SF Mono', Menlo, monospace;
-              font-size: 0.8rem;
-              color: #444;
-              min-width: 5.5rem;
-              flex-shrink: 0;
+            .left-column {
+                display: flex;
+                flex-direction: column;
+                gap: 1rem;
+                min-height: 0;
             }
 
-            .bar-track {
-              flex: 1;
-              height: 1.75rem;
-              background: #f0f0f0;
-              border-radius: 3px;
-              overflow: hidden;
+            .preview-card {
+                border: 1px solid #ddd;
+                border-radius: 6px;
+                overflow: hidden;
+                flex-shrink: 0;
+                transition: border-color 0.15s;
 
-              .bar {
-                height: 100%;
-                border-radius: 3px;
-                min-width: 2px;
-                border: 1px solid #000;
-                transition: width 0.15s ease;
-              }
+                &:hover {
+                    border-color: #aaa;
+                }
+
+                .preview-area {
+                    width: 100%;
+                    aspect-ratio: 1;
+                    padding: 1rem;
+                    background: var(--colour-image-area);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    overflow: hidden;
+                    cursor: pointer;
+                    transition: background 0.15s;
+
+                    &:hover {
+                        background: var(--colour-image-area-hover);
+                    }
+
+                    .preview-image {
+                        display: none;
+                        width: 100%;
+                        height: 100%;
+                        object-fit: contain;
+
+                        &.visible {
+                            display: block;
+                            & ~ .preview-placeholder {
+                                display: none;
+                            }
+                        }
+                    }
+
+                    .preview-placeholder {
+                        display: flex;
+                        flex-direction: column;
+                        align-items: center;
+                        gap: 0.5rem;
+                        color: var(--colour-hint);
+                        font-size: 0.8rem;
+                        pointer-events: none;
+                        user-select: none;
+                    }
+                }
+
+                .image-details {
+                    padding: 0.5rem 0.75rem;
+                    border-top: 1px solid #ddd;
+                    background: var(--colour-panel-bg);
+
+                    .detail-name {
+                        font-size: 0.85rem;
+                        font-weight: 500;
+                        color: var(--colour-text);
+                        white-space: nowrap;
+                        overflow: hidden;
+                        text-overflow: ellipsis;
+                        min-height: 1.2em;
+                    }
+
+                    .detail-meta {
+                        font-size: 0.78rem;
+                        color: var(--colour-subtext-image);
+                        margin-top: 0.2rem;
+                        min-height: 1.2em;
+                    }
+                }
             }
 
-            .percentage-label {
-              font-size: 0.8rem;
-              color: #666;
-              min-width: 3.25rem;
-              flex-shrink: 0;
-              text-align: right;
-              font-variant-numeric: tabular-nums;
+            .controls {
+                background: var(--colour-panel-bg);
+                border: 1px solid #ddd;
+                border-radius: 6px;
+                padding: 1rem;
+                display: flex;
+                flex-direction: column;
+                gap: 0.75rem;
+                flex: 1;
+                min-height: 0;
+
+                .slider-group {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 0.4rem;
+
+                    .slider-header {
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: baseline;
+                        font-size: 0.85rem;
+                        padding-bottom: 6px;
+                        color: var(--colour-subtext-controls);
+
+                        strong {
+                            color: var(--colour-text);
+                            font-weight: 600;
+                            font-variant-numeric: tabular-nums;
+                        }
+                    }
+
+                    .slider {
+                        width: 100%;
+                        cursor: pointer;
+                        -webkit-appearance: none;
+                        appearance: none;
+                        height: 4px;
+                        border-radius: 2px;
+                        outline: none;
+
+                        &::-webkit-slider-runnable-track {
+                            background: linear-gradient(
+                                to right,
+                                var(--colour-slider-fill) var(--fill-pct, 14.29%),
+                                var(--colour-slider-track) var(--fill-pct, 14.29%)
+                            );
+                            height: 4px;
+                            border-radius: 2px;
+                        }
+
+                        &::-webkit-slider-thumb {
+                            -webkit-appearance: none;
+                            appearance: none;
+                            width: 16px;
+                            height: 16px;
+                            border-radius: 50%;
+                            background: var(--colour-slider-handle);
+                            border: 2px solid #000;
+                            cursor: pointer;
+                            margin-top: -6px;
+                        }
+
+                        &::-moz-range-track {
+                            background: var(--colour-slider-track);
+                            height: 4px;
+                            border-radius: 2px;
+                        }
+
+                        &::-moz-range-progress {
+                            background: var(--colour-slider-fill);
+                            height: 4px;
+                            border-radius: 2px;
+                        }
+
+                        &::-moz-range-thumb {
+                            width: 16px;
+                            height: 16px;
+                            border-radius: 50%;
+                            background: var(--colour-slider-handle);
+                            border: 2px solid #000;
+                            cursor: pointer;
+                            box-sizing: border-box;
+                        }
+
+                        &:disabled {
+                            opacity: 0.4;
+                            cursor: not-allowed;
+                        }
+                    }
+
+                    .slider-hints {
+                        display: flex;
+                        justify-content: space-between;
+                        font-size: 0.72rem;
+                        color: var(--colour-hint);
+                    }
+                }
             }
-          }
-        }
-      }
 
-      .drop-overlay {
-        display: none;
-        position: fixed;
-        inset: 0;
-        background: rgba(0, 0, 0, 0.35);
-        z-index: 100;
-        align-items: center;
-        justify-content: center;
-        pointer-events: none;
+            .right-column {
+                background: var(--colour-panel-bg);
+                border: 1px solid #ddd;
+                border-radius: 6px;
+                padding: 1.25rem 1.5rem;
+                overflow-y: auto;
+                min-height: 0;
 
-        &.visible { display: flex; }
+                @media (max-width: 639px) {
+                    overflow-y: visible;
+                    min-height: 300px;
+                }
 
-        .drop-hint {
-          background: #fff;
-          border: 2px dashed #444;
-          border-radius: 8px;
-          padding: 2.5rem 4rem;
-          font-size: 1rem;
-          font-weight: 500;
-          color: #333;
-        }
-      }
-    </style>
-  </head>
-  <body>
-    <h1>Image Dominant Colour Finder</h1>
-    <div class="layout">
-      <div class="left-column">
-        <div class="preview-card">
-          <div class="preview-area" id="preview-area">
-            <img
-              id="preview-image"
-              class="preview-image"
-              alt="Uploaded image preview"
-            />
-            <div class="preview-placeholder">
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                <rect x="3" y="3" width="18" height="18" rx="2"/>
-                <circle cx="8.5" cy="8.5" r="1.5"/>
-                <polyline points="21 15 16 10 5 21"/>
-              </svg>
-              <span>Click or drag an image here</span>
+                .empty-state,
+                .loading-state {
+                    height: 100%;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: 0.95rem;
+                    color: var(--colour-subtext-image);
+
+                    @media (max-width: 639px) {
+                        height: 200px;
+                    }
+                }
+
+                .error-state {
+                    padding: 1rem 0;
+                    font-size: 0.9rem;
+                    color: #c00;
+                }
+
+                .chart {
+                    display: none;
+                    flex-direction: column;
+                    gap: 0.6rem;
+
+                    &.visible {
+                        display: flex;
+                    }
+
+                    .chart-row {
+                        display: flex;
+                        align-items: center;
+                        gap: 0.75rem;
+
+                        .colour-label {
+                            font-family:
+                                ui-monospace, "SF Mono", Menlo, monospace;
+                            font-size: 0.8rem;
+                            color: var(--colour-text);
+                            min-width: 5.5rem;
+                            flex-shrink: 0;
+                        }
+
+                        .bar-track {
+                            flex: 1;
+                            height: 1.75rem;
+                            background: var(--colour-bar-track);
+                            border-radius: 3px;
+                            overflow: hidden;
+
+                            .bar {
+                                height: 100%;
+                                border-radius: 3px;
+                                min-width: 2px;
+                                border: 1px solid #000;
+                                transition: width 0.15s ease;
+                            }
+                        }
+
+                        .percentage-label {
+                            font-size: 0.8rem;
+                            color: #666;
+                            min-width: 3.25rem;
+                            flex-shrink: 0;
+                            text-align: right;
+                            font-variant-numeric: tabular-nums;
+                        }
+                    }
+                }
+            }
+
+            .drop-overlay {
+                display: none;
+                position: fixed;
+                inset: 0;
+                background: rgba(0, 0, 0, 0.35);
+                z-index: 100;
+                align-items: center;
+                justify-content: center;
+                pointer-events: none;
+
+                &.visible {
+                    display: flex;
+                }
+
+                .drop-hint {
+                    background: var(--colour-panel-bg);
+                    border: 2px dashed #444;
+                    border-radius: 8px;
+                    padding: 2.5rem 4rem;
+                    font-size: 1rem;
+                    font-weight: 500;
+                    color: #333;
+                }
+            }
+        </style>
+    </head>
+    <body>
+        <h1>Image Dominant Colour Finder</h1>
+        <div class="layout">
+            <div class="left-column">
+                <div class="preview-card">
+                    <div class="preview-area" id="preview-area">
+                        <img
+                            id="preview-image"
+                            class="preview-image"
+                            alt="Uploaded image preview"
+                        />
+                        <div class="preview-placeholder">
+                            <svg
+                                width="32"
+                                height="32"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="1.5"
+                            >
+                                <rect x="3" y="3" width="18" height="18" rx="2"
+                                ></rect>
+                                <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                                <polyline points="21 15 16 10 5 21"></polyline>
+                            </svg>
+                            <span>Click or drag an image here</span>
+                        </div>
+                    </div>
+                    <div id="image-details" class="image-details">
+                        <div class="detail-name" id="detail-name"></div>
+                        <div class="detail-meta" id="detail-meta"></div>
+                    </div>
+                </div>
+                <div class="controls">
+                    <div class="slider-group">
+                        <div class="slider-header">
+                            <label for="quantize-slider">Colour grouping</label>
+                            <strong id="slider-value">10</strong>
+                        </div>
+                        <input
+                            id="quantize-slider"
+                            class="slider"
+                            type="range"
+                            min="1"
+                            max="64"
+                            step="1"
+                            value="10"
+                            disabled
+                        />
+                        <div class="slider-hints">
+                            <span>Exact colours</span>
+                            <span>Broadly merged</span>
+                        </div>
+                    </div>
+                </div>
             </div>
-          </div>
-          <div id="image-details" class="image-details">
-            <div class="detail-name" id="detail-name"></div>
-            <div class="detail-meta" id="detail-meta"></div>
-          </div>
-        </div>
-        <div class="controls">
-          <div class="slider-group">
-            <div class="slider-header">
-              <label for="quantize-slider">Colour grouping</label>
-              <strong id="slider-value">10</strong>
+            <div class="right-column">
+                <div id="empty-state" class="empty-state">
+                    Upload an image to see its dominant colours
+                </div>
+                <div
+                    id="loading-state"
+                    class="loading-state"
+                    style="display: none;"
+                >
+                    Analysing…
+                </div>
+                <div
+                    id="error-state"
+                    class="error-state"
+                    style="display: none;"
+                >
+                </div>
+                <div id="chart" class="chart"></div>
             </div>
-            <input
-              id="quantize-slider"
-              class="slider"
-              type="range"
-              min="1"
-              max="64"
-              step="1"
-              value="10"
-              disabled
-            />
-            <div class="slider-hints">
-              <span>Exact colours</span>
-              <span>Broadly merged</span>
-            </div>
-          </div>
         </div>
-      </div>
-      <div class="right-column">
-        <div id="empty-state" class="empty-state">
-          Upload an image to see its dominant colours
+
+        <input
+            id="file-input"
+            type="file"
+            accept=".jpg,.jpeg,.png,.webp,.avif,.bmp,image/jpeg,image/png,image/webp,image/avif,image/bmp"
+            style="display: none;"
+        />
+        <div id="drop-overlay" class="drop-overlay">
+            <div class="drop-hint">Drop image here</div>
         </div>
-        <div id="loading-state" class="loading-state" style="display: none;">
-          Analysing…
-        </div>
-        <div id="error-state" class="error-state" style="display: none;"></div>
-        <div id="chart" class="chart"></div>
-      </div>
-    </div>
 
-    <input
-      id="file-input"
-      type="file"
-      accept=".jpg,.jpeg,.png,.webp,.avif,.bmp,image/jpeg,image/png,image/webp,image/avif,image/bmp"
-      style="display: none;"
-    />
-    <div id="drop-overlay" class="drop-overlay">
-      <div class="drop-hint">Drop image here</div>
-    </div>
+        <script>
+            import {
+                reaggregate,
+                sortedColours,
+            } from "../lib/colour-algorithm.ts"
+            import {
+                processImage,
+                ValidationError,
+            } from "../lib/image-processor.ts"
+            import type {
+                RawMap,
+                ColourEntry,
+            } from "../lib/colour-algorithm.ts"
 
-    <script>
-      import { reaggregate, sortedColours } from '../lib/colour-algorithm.ts';
-      import { processImage, ValidationError } from '../lib/image-processor.ts';
-      import type { RawMap, ColourEntry } from '../lib/colour-algorithm.ts';
-
-      declare global {
-        interface Window {
-          __lastResult: { map: RawMap; totalPixels: number } | undefined;
-          __lastRendered: ColourEntry[] | undefined;
-          __recalcCount: number;
-          __delayProcessing: number | undefined;
-          __createObjectURLCount: number | undefined;
-        }
-      }
-
-      const fileInput = document.getElementById('file-input') as HTMLInputElement;
-      const previewArea = document.getElementById('preview-area') as HTMLDivElement;
-      const previewImage = document.getElementById('preview-image') as HTMLImageElement;
-      const dropOverlay = document.getElementById('drop-overlay') as HTMLDivElement;
-      const imageDetails = document.getElementById('image-details') as HTMLDivElement;
-      const detailName = document.getElementById('detail-name') as HTMLDivElement;
-      const detailMeta = document.getElementById('detail-meta') as HTMLDivElement;
-      const slider = document.getElementById('quantize-slider') as HTMLInputElement;
-      const sliderValue = document.getElementById('slider-value') as HTMLSpanElement;
-      const emptyState = document.getElementById('empty-state') as HTMLDivElement;
-      const loadingState = document.getElementById('loading-state') as HTMLDivElement;
-      const errorState = document.getElementById('error-state') as HTMLDivElement;
-      const chart = document.getElementById('chart') as HTMLDivElement;
-
-      let rawMap: RawMap | null = null;
-      let totalPixels: number = 0;
-      let debounceTimer: ReturnType<typeof setTimeout> | undefined;
-      let busyHintTimer: ReturnType<typeof setTimeout> | undefined;
-      let isProcessing: boolean = false;
-
-      window.__recalcCount = 0;
-      window.__delayProcessing = undefined;
-      window.__lastResult = undefined;
-      window.__lastRendered = undefined;
-
-      function syncSliderFill(): void {
-        const pct = ((+slider.value - +slider.min) / (+slider.max - +slider.min)) * 100;
-        slider.style.setProperty('--fill-pct', `${pct}%`);
-      }
-
-      slider.disabled = true;
-      slider.value = '10';
-      sliderValue.textContent = '10';
-      syncSliderFill();
-
-      const mimeTypeLabels: Record<string, string> = {
-        'image/jpeg': 'JPEG',
-        'image/png': 'PNG',
-        'image/webp': 'WebP',
-        'image/avif': 'AVIF',
-        'image/bmp': 'BMP',
-      };
-
-      function showLoading(): void {
-        clearTimeout(debounceTimer);
-        isProcessing = true;
-        emptyState.style.display = 'none';
-        loadingState.style.display = '';
-        errorState.style.display = 'none';
-        chart.classList.remove('visible');
-        fileInput.disabled = true;
-        slider.disabled = true;
-      }
-
-      function showError(message: string): void {
-        isProcessing = false;
-        emptyState.style.display = 'none';
-        loadingState.style.display = 'none';
-        errorState.style.display = '';
-        errorState.textContent = message;
-        chart.classList.remove('visible');
-        detailName.textContent = '';
-        detailMeta.textContent = '';
-        fileInput.disabled = false;
-        slider.disabled = true;
-        rawMap = null;
-        totalPixels = 0;
-      }
-
-      function renderChart(entries: ColourEntry[]): void {
-        isProcessing = false;
-        chart.innerHTML = '';
-
-        for (const entry of entries) {
-          const row = document.createElement('div');
-          row.className = 'chart-row';
-
-          const label = document.createElement('span');
-          label.className = 'colour-label';
-          label.textContent = entry.isTransparent ? 'transparent' : entry.hex;
-          row.appendChild(label);
-
-          const barContainer = document.createElement('div');
-          barContainer.className = 'bar-track';
-
-          const bar = document.createElement('div');
-          bar.className = 'bar';
-          bar.style.width = `${entry.percentage}%`;
-
-          if (entry.isTransparent) {
-            bar.style.background =
-              'repeating-linear-gradient(45deg, #ccc 0px, #ccc 4px, #fff 4px, #fff 8px)';
-            bar.style.border = '1px solid black';
-          } else {
-            bar.style.backgroundColor = entry.hex;
-          }
-
-          barContainer.appendChild(bar);
-          row.appendChild(barContainer);
-
-          const percentLabel = document.createElement('span');
-          percentLabel.className = 'percentage-label';
-          percentLabel.textContent = `${entry.percentage.toFixed(1)}%`;
-          row.appendChild(percentLabel);
-
-          chart.appendChild(row);
-        }
-
-        emptyState.style.display = 'none';
-        loadingState.style.display = 'none';
-        errorState.style.display = 'none';
-        chart.classList.add('visible');
-        fileInput.disabled = false;
-        slider.disabled = false;
-
-        if (import.meta.env.DEV) {
-          window.__lastRendered = entries;
-          window.__recalcCount = window.__recalcCount + 1;
-        }
-      }
-
-      function runRenderPipeline(): void {
-        if (rawMap === null) return;
-        const bucketSize = parseInt(slider.value, 10);
-        if (!Number.isFinite(bucketSize) || bucketSize < 1) return;
-        const aggregated = reaggregate(rawMap, bucketSize);
-        const entries = sortedColours(aggregated, totalPixels);
-        renderChart(entries);
-      }
-
-      async function handleFile(file: File): Promise<void> {
-        if (import.meta.env.DEV) {
-          window.__lastResult = undefined;
-        }
-        showLoading();
-
-        const fileReaderPromise = new Promise<string>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(reader.result as string);
-          reader.onerror = () => reject(new Error('Could not read image.'));
-          reader.onabort = () => reject(new Error('Could not read image.'));
-          reader.readAsDataURL(file);
-        });
-
-        const processImagePromise = (async () => {
-          if (import.meta.env.DEV) {
-            const delay = window.__delayProcessing;
-            if (delay !== undefined && delay > 0) {
-              await new Promise(resolve => setTimeout(resolve, delay));
+            declare global {
+                interface Window {
+                    __lastResult:
+                        | { map: RawMap; totalPixels: number }
+                        | undefined
+                    __lastRendered: ColourEntry[] | undefined
+                    __recalcCount: number
+                    __delayProcessing: number | undefined
+                    __createObjectURLCount: number | undefined
+                }
             }
-          }
-          return processImage(file);
-        })();
 
-        try {
-          const [previewUrl, result] = await Promise.all([fileReaderPromise, processImagePromise]);
-          rawMap = result.map;
-          totalPixels = result.totalPixels;
+            const fileInput = document.getElementById(
+                "file-input",
+            ) as HTMLInputElement
+            const previewArea = document.getElementById(
+                "preview-area",
+            ) as HTMLDivElement
+            const previewImage = document.getElementById(
+                "preview-image",
+            ) as HTMLImageElement
+            const dropOverlay = document.getElementById(
+                "drop-overlay",
+            ) as HTMLDivElement
+            const imageDetails = document.getElementById(
+                "image-details",
+            ) as HTMLDivElement
+            const detailName = document.getElementById(
+                "detail-name",
+            ) as HTMLDivElement
+            const detailMeta = document.getElementById(
+                "detail-meta",
+            ) as HTMLDivElement
+            const slider = document.getElementById(
+                "quantize-slider",
+            ) as HTMLInputElement
+            const sliderValue = document.getElementById(
+                "slider-value",
+            ) as HTMLSpanElement
+            const emptyState = document.getElementById(
+                "empty-state",
+            ) as HTMLDivElement
+            const loadingState = document.getElementById(
+                "loading-state",
+            ) as HTMLDivElement
+            const errorState = document.getElementById(
+                "error-state",
+            ) as HTMLDivElement
+            const chart = document.getElementById("chart") as HTMLDivElement
 
-          if (import.meta.env.DEV) {
-            window.__lastResult = { map: rawMap, totalPixels };
-          }
+            let rawMap: RawMap | null = null
+            let totalPixels: number = 0
+            let debounceTimer: ReturnType<typeof setTimeout> | undefined
+            let busyHintTimer: ReturnType<typeof setTimeout> | undefined
+            let isProcessing: boolean = false
 
-          previewImage.onload = () => {
-            const typeLabel = mimeTypeLabels[file.type] ?? file.type;
-            detailName.textContent = file.name;
-            detailMeta.textContent = `${typeLabel} · ${previewImage.naturalWidth} × ${previewImage.naturalHeight} px`;
-          };
-          previewImage.src = previewUrl;
-          previewImage.classList.add('visible');
+            window.__recalcCount = 0
+            window.__delayProcessing = undefined
+            window.__lastResult = undefined
+            window.__lastRendered = undefined
 
-          runRenderPipeline();
-        } catch (error) {
-          if (error instanceof ValidationError) {
-            showError(error.message);
-          } else {
-            showError('Could not read image.');
-          }
-          previewImage.classList.remove('visible');
-          previewImage.onload = null;
-          previewImage.src = '';
-        }
-      }
+            function syncSliderFill(): void {
+                const pct =
+                    ((+slider.value - +slider.min) /
+                        (+slider.max - +slider.min)) *
+                    100
+                slider.style.setProperty("--fill-pct", `${pct}%`)
+            }
 
-      previewArea.addEventListener('click', () => fileInput.click());
+            slider.disabled = true
+            slider.value = "10"
+            sliderValue.textContent = "10"
+            syncSliderFill()
 
-      fileInput.addEventListener('change', () => {
-        if (isProcessing) return;
-        const file = fileInput.files?.[0];
-        if (file) handleFile(file).catch(() => showError('Unexpected error.'));
-      });
+            const mimeTypeLabels: Record<string, string> = {
+                "image/jpeg": "JPEG",
+                "image/png": "PNG",
+                "image/webp": "WebP",
+                "image/avif": "AVIF",
+                "image/bmp": "BMP",
+            }
 
-      window.addEventListener('dragenter', (event) => {
-        if (!event.dataTransfer?.types.includes('Files')) return;
-        event.preventDefault();
-        dropOverlay.classList.add('visible');
-      });
+            function showLoading(): void {
+                clearTimeout(debounceTimer)
+                isProcessing = true
+                emptyState.style.display = "none"
+                loadingState.style.display = ""
+                errorState.style.display = "none"
+                chart.classList.remove("visible")
+                fileInput.disabled = true
+                slider.disabled = true
+            }
 
-      window.addEventListener('dragleave', (event) => {
-        if (!event.dataTransfer?.types.includes('Files')) return;
-        if (event.relatedTarget === null) {
-          dropOverlay.classList.remove('visible');
-        }
-      });
+            function showError(message: string): void {
+                isProcessing = false
+                emptyState.style.display = "none"
+                loadingState.style.display = "none"
+                errorState.style.display = ""
+                errorState.textContent = message
+                chart.classList.remove("visible")
+                detailName.textContent = ""
+                detailMeta.textContent = ""
+                fileInput.disabled = false
+                slider.disabled = true
+                rawMap = null
+                totalPixels = 0
+            }
 
-      window.addEventListener('dragover', (event) => {
-        if (event.dataTransfer?.types.includes('Files')) {
-          event.preventDefault();
-        }
-      });
+            function renderChart(entries: ColourEntry[]): void {
+                isProcessing = false
+                chart.innerHTML = ""
 
-      const dropHint = dropOverlay.querySelector('.drop-hint') as HTMLElement;
-      const DROP_HINT_TEXT = dropHint?.textContent ?? 'Drop image here';
+                for (const entry of entries) {
+                    const row = document.createElement("div")
+                    row.className = "chart-row"
 
-      window.addEventListener('drop', (event) => {
-        event.preventDefault();
-        dropOverlay.classList.remove('visible');
-        if (isProcessing) {
-          clearTimeout(busyHintTimer);
-          dropHint.textContent = 'Processing… please wait';
-          dropOverlay.classList.add('visible');
-          busyHintTimer = setTimeout(() => {
-            dropOverlay.classList.remove('visible');
-            dropHint.textContent = DROP_HINT_TEXT;
-          }, 1500);
-          return;
-        }
-        const file = event.dataTransfer?.files[0];
-        if (file) handleFile(file).catch(() => showError('Unexpected error.'));
-      });
+                    const label = document.createElement("span")
+                    label.className = "colour-label"
+                    label.textContent = entry.isTransparent
+                        ? "transparent"
+                        : entry.hex
+                    row.appendChild(label)
 
-      slider.addEventListener('input', () => {
-        sliderValue.textContent = slider.value;
-        syncSliderFill();
+                    const barContainer = document.createElement("div")
+                    barContainer.className = "bar-track"
 
-        clearTimeout(debounceTimer);
-        debounceTimer = setTimeout(() => {
-          try {
-            runRenderPipeline();
-          } catch {
-            showError('Unexpected error.');
-          }
-        }, 50);
-      });
-    </script>
-  </body>
+                    const bar = document.createElement("div")
+                    bar.className = "bar"
+                    bar.style.width = `${entry.percentage}%`
+
+                    if (entry.isTransparent) {
+                        bar.style.background =
+                            "repeating-linear-gradient(45deg, #ccc 0px, #ccc 4px, #fff 4px, #fff 8px)"
+                        bar.style.border = "1px solid black"
+                    } else {
+                        bar.style.backgroundColor = entry.hex
+                    }
+
+                    barContainer.appendChild(bar)
+                    row.appendChild(barContainer)
+
+                    const percentLabel = document.createElement("span")
+                    percentLabel.className = "percentage-label"
+                    percentLabel.textContent = `${entry.percentage.toFixed(1)}%`
+                    row.appendChild(percentLabel)
+
+                    chart.appendChild(row)
+                }
+
+                emptyState.style.display = "none"
+                loadingState.style.display = "none"
+                errorState.style.display = "none"
+                chart.classList.add("visible")
+                fileInput.disabled = false
+                slider.disabled = false
+
+                if (import.meta.env.DEV) {
+                    window.__lastRendered = entries
+                    window.__recalcCount = window.__recalcCount + 1
+                }
+            }
+
+            function runRenderPipeline(): void {
+                if (rawMap === null) return
+                const bucketSize = parseInt(slider.value, 10)
+                if (!Number.isFinite(bucketSize) || bucketSize < 1) return
+                const aggregated = reaggregate(rawMap, bucketSize)
+                const entries = sortedColours(aggregated, totalPixels)
+                renderChart(entries)
+            }
+
+            async function handleFile(file: File): Promise<void> {
+                if (import.meta.env.DEV) {
+                    window.__lastResult = undefined
+                }
+                showLoading()
+
+                const fileReaderPromise = new Promise<string>(
+                    (resolve, reject) => {
+                        const reader = new FileReader()
+                        reader.onload = () => resolve(reader.result as string)
+                        reader.onerror = () =>
+                            reject(new Error("Could not read image."))
+                        reader.onabort = () =>
+                            reject(new Error("Could not read image."))
+                        reader.readAsDataURL(file)
+                    },
+                )
+
+                const processImagePromise = (async () => {
+                    if (import.meta.env.DEV) {
+                        const delay = window.__delayProcessing
+                        if (delay !== undefined && delay > 0) {
+                            await new Promise((resolve) =>
+                                setTimeout(resolve, delay),
+                            )
+                        }
+                    }
+                    return processImage(file)
+                })()
+
+                try {
+                    const [previewUrl, result] = await Promise.all([
+                        fileReaderPromise,
+                        processImagePromise,
+                    ])
+                    rawMap = result.map
+                    totalPixels = result.totalPixels
+
+                    if (import.meta.env.DEV) {
+                        window.__lastResult = { map: rawMap, totalPixels }
+                    }
+
+                    previewImage.onload = () => {
+                        const typeLabel = mimeTypeLabels[file.type] ?? file.type
+                        detailName.textContent = file.name
+                        detailMeta.textContent = `${typeLabel} · ${previewImage.naturalWidth} × ${previewImage.naturalHeight} px`
+                    }
+                    previewImage.src = previewUrl
+                    previewImage.classList.add("visible")
+
+                    runRenderPipeline()
+                } catch (error) {
+                    if (error instanceof ValidationError) {
+                        showError(error.message)
+                    } else {
+                        showError("Could not read image.")
+                    }
+                    previewImage.classList.remove("visible")
+                    previewImage.onload = null
+                    previewImage.src = ""
+                }
+            }
+
+            previewArea.addEventListener("click", () => fileInput.click())
+
+            fileInput.addEventListener("change", () => {
+                if (isProcessing) return
+                const file = fileInput.files?.[0]
+                if (file)
+                    handleFile(file).catch(() => showError("Unexpected error."))
+            })
+
+            window.addEventListener("dragenter", (event) => {
+                if (!event.dataTransfer?.types.includes("Files")) return
+                event.preventDefault()
+                dropOverlay.classList.add("visible")
+            })
+
+            window.addEventListener("dragleave", (event) => {
+                if (!event.dataTransfer?.types.includes("Files")) return
+                if (event.relatedTarget === null) {
+                    dropOverlay.classList.remove("visible")
+                }
+            })
+
+            window.addEventListener("dragover", (event) => {
+                if (event.dataTransfer?.types.includes("Files")) {
+                    event.preventDefault()
+                }
+            })
+
+            const dropHint = dropOverlay.querySelector(
+                ".drop-hint",
+            ) as HTMLElement
+            const DROP_HINT_TEXT = dropHint?.textContent ?? "Drop image here"
+
+            window.addEventListener("drop", (event) => {
+                event.preventDefault()
+                dropOverlay.classList.remove("visible")
+                if (isProcessing) {
+                    clearTimeout(busyHintTimer)
+                    dropHint.textContent = "Processing… please wait"
+                    dropOverlay.classList.add("visible")
+                    busyHintTimer = setTimeout(() => {
+                        dropOverlay.classList.remove("visible")
+                        dropHint.textContent = DROP_HINT_TEXT
+                    }, 1500)
+                    return
+                }
+                const file = event.dataTransfer?.files[0]
+                if (file)
+                    handleFile(file).catch(() => showError("Unexpected error."))
+            })
+
+            slider.addEventListener("input", () => {
+                sliderValue.textContent = slider.value
+                syncSliderFill()
+
+                clearTimeout(debounceTimer)
+                debounceTimer = setTimeout(() => {
+                    try {
+                        runRenderPipeline()
+                    } catch {
+                        showError("Unexpected error.")
+                    }
+                }, 50)
+            })
+        </script>
+    </body>
 </html>
