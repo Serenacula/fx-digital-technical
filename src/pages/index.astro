@@ -251,37 +251,6 @@
                     }
                 }
 
-                .filter-group {
-                    display: flex;
-                    flex-direction: column;
-                    gap: 0.35rem;
-                    padding-top: 0.25rem;
-                    border-top: 1px solid #ddd;
-
-                    .filter-label {
-                        font-size: 0.85rem;
-                        color: var(--colour-subtext-controls);
-                        margin-bottom: 0.1rem;
-                    }
-
-                    .filter-option {
-                        display: flex;
-                        align-items: center;
-                        gap: 0.5rem;
-                        font-size: 0.85rem;
-                        color: var(--colour-text);
-                        cursor: pointer;
-                        user-select: none;
-
-                        input[type="checkbox"] {
-                            width: 15px;
-                            height: 15px;
-                            flex-shrink: 0;
-                            accent-color: var(--colour-slider-fill);
-                            cursor: pointer;
-                        }
-                    }
-                }
             }
 
             .right-column {
@@ -363,6 +332,34 @@
                             flex-shrink: 0;
                             text-align: right;
                             font-variant-numeric: tabular-nums;
+                        }
+
+                        .exclude-btn {
+                            flex-shrink: 0;
+                            width: 22px;
+                            height: 22px;
+                            padding: 2px;
+                            border: none;
+                            background: none;
+                            cursor: pointer;
+                            color: var(--colour-hint);
+                            border-radius: 3px;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            transition: color 0.1s;
+
+                            &:hover { color: var(--colour-text); }
+                        }
+
+                        &.excluded {
+                            opacity: 0.45;
+
+                            .colour-label { text-decoration: line-through; }
+
+                            .bar { filter: grayscale(1); }
+
+                            .exclude-btn { color: var(--colour-text); }
                         }
                     }
                 }
@@ -448,21 +445,7 @@
                             <span>Broadly merged</span>
                         </div>
                     </div>
-                    <div class="filter-group">
-                        <span class="filter-label">Ignore colours</span>
-                        <label class="filter-option">
-                            <input type="checkbox" id="filter-white" />
-                            White (lightness &gt; 90%)
-                        </label>
-                        <label class="filter-option">
-                            <input type="checkbox" id="filter-black" />
-                            Black (lightness &lt; 10%)
-                        </label>
-                        <label class="filter-option">
-                            <input type="checkbox" id="filter-transparent" />
-                            Transparent
-                        </label>
-                    </div>
+
                 </div>
             </div>
             <div class="right-column">
@@ -498,8 +481,8 @@
 
         <script>
             import {
-                reaggregate,
-                filterAggregated,
+                reaggregateWithBlacklist,
+                rawKeysForBucket,
                 sortedColours,
             } from "../lib/colour-algorithm.ts"
             import {
@@ -560,18 +543,10 @@
                 "error-state",
             ) as HTMLDivElement
             const chart = document.getElementById("chart") as HTMLDivElement
-            const filterWhite = document.getElementById(
-                "filter-white",
-            ) as HTMLInputElement
-            const filterBlack = document.getElementById(
-                "filter-black",
-            ) as HTMLInputElement
-            const filterTransparent = document.getElementById(
-                "filter-transparent",
-            ) as HTMLInputElement
 
             let rawMap: RawMap | null = null
             let totalPixels: number = 0
+            let blacklist: Set<string> = new Set()
             let debounceTimer: ReturnType<typeof setTimeout> | undefined
             let busyHintTimer: ReturnType<typeof setTimeout> | undefined
             let isProcessing: boolean = false
@@ -628,45 +603,79 @@
                 totalPixels = 0
             }
 
-            function renderChart(entries: ColourEntry[]): void {
+            const EYE_OPEN_SVG = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`
+            const EYE_CLOSED_SVG = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>`
+
+            function buildRow(entry: ColourEntry, isExcluded: boolean): HTMLElement {
+                const bucketSize = parseInt(slider.value, 10)
+                const row = document.createElement("div")
+                row.className = isExcluded ? "chart-row excluded" : "chart-row"
+
+                const label = document.createElement("span")
+                label.className = "colour-label"
+                label.textContent = entry.isTransparent ? "transparent" : entry.hex
+                row.appendChild(label)
+
+                const barContainer = document.createElement("div")
+                barContainer.className = "bar-track"
+                const bar = document.createElement("div")
+                bar.className = "bar"
+                bar.style.width = `${entry.percentage}%`
+                if (entry.isTransparent) {
+                    bar.style.background =
+                        "repeating-linear-gradient(45deg, #ccc 0px, #ccc 4px, #fff 4px, #fff 8px)"
+                    bar.style.border = "1px solid black"
+                } else {
+                    bar.style.backgroundColor = entry.hex
+                }
+                barContainer.appendChild(bar)
+                row.appendChild(barContainer)
+
+                const percentLabel = document.createElement("span")
+                percentLabel.className = "percentage-label"
+                percentLabel.textContent = isExcluded
+                    ? "—"
+                    : `${entry.percentage.toFixed(1)}%`
+                row.appendChild(percentLabel)
+
+                const excludeBtn = document.createElement("button")
+                excludeBtn.className = "exclude-btn"
+                excludeBtn.innerHTML = isExcluded ? EYE_CLOSED_SVG : EYE_OPEN_SVG
+                excludeBtn.title = isExcluded ? "Re-include colour" : "Exclude colour"
+                excludeBtn.addEventListener("click", () => {
+                    const keys = rawKeysForBucket(
+                        rawMap!,
+                        entry.quantizedKey,
+                        bucketSize,
+                    )
+                    if (isExcluded) {
+                        keys.forEach(key => blacklist.delete(key))
+                    } else {
+                        keys.forEach(key => blacklist.add(key))
+                    }
+                    try {
+                        runRenderPipeline()
+                    } catch {
+                        showError("Unexpected error.")
+                    }
+                })
+                row.appendChild(excludeBtn)
+
+                return row
+            }
+
+            function renderChart(
+                included: ColourEntry[],
+                excluded: ColourEntry[],
+            ): void {
                 isProcessing = false
                 chart.innerHTML = ""
 
-                for (const entry of entries) {
-                    const row = document.createElement("div")
-                    row.className = "chart-row"
-
-                    const label = document.createElement("span")
-                    label.className = "colour-label"
-                    label.textContent = entry.isTransparent
-                        ? "transparent"
-                        : entry.hex
-                    row.appendChild(label)
-
-                    const barContainer = document.createElement("div")
-                    barContainer.className = "bar-track"
-
-                    const bar = document.createElement("div")
-                    bar.className = "bar"
-                    bar.style.width = `${entry.percentage}%`
-
-                    if (entry.isTransparent) {
-                        bar.style.background =
-                            "repeating-linear-gradient(45deg, #ccc 0px, #ccc 4px, #fff 4px, #fff 8px)"
-                        bar.style.border = "1px solid black"
-                    } else {
-                        bar.style.backgroundColor = entry.hex
-                    }
-
-                    barContainer.appendChild(bar)
-                    row.appendChild(barContainer)
-
-                    const percentLabel = document.createElement("span")
-                    percentLabel.className = "percentage-label"
-                    percentLabel.textContent = `${entry.percentage.toFixed(1)}%`
-                    row.appendChild(percentLabel)
-
-                    chart.appendChild(row)
+                for (const entry of included) {
+                    chart.appendChild(buildRow(entry, false))
+                }
+                for (const entry of excluded) {
+                    chart.appendChild(buildRow(entry, true))
                 }
 
                 emptyState.style.display = "none"
@@ -677,7 +686,7 @@
                 slider.disabled = false
 
                 if (import.meta.env.DEV) {
-                    window.__lastRendered = entries
+                    window.__lastRendered = included
                     window.__recalcCount = window.__recalcCount + 1
                 }
             }
@@ -686,24 +695,22 @@
                 if (rawMap === null) return
                 const bucketSize = parseInt(slider.value, 10)
                 if (!Number.isFinite(bucketSize) || bucketSize < 1) return
-                const aggregated = reaggregate(rawMap, bucketSize)
-                const filtered = filterAggregated(aggregated, {
-                    ignoreWhite: filterWhite.checked,
-                    ignoreBlack: filterBlack.checked,
-                    ignoreTransparent: filterTransparent.checked,
-                })
-                const filteredTotal = Object.values(filtered).reduce(
+                const { included: includedMap, excluded: excludedMap } =
+                    reaggregateWithBlacklist(rawMap, bucketSize, blacklist)
+                const includedTotal = Object.values(includedMap).reduce(
                     (sum, count) => sum + count,
                     0,
                 )
-                const entries = sortedColours(filtered, filteredTotal)
-                renderChart(entries)
+                const includedEntries = sortedColours(includedMap, includedTotal)
+                const excludedEntries = sortedColours(excludedMap, totalPixels)
+                renderChart(includedEntries, excludedEntries)
             }
 
             async function handleFile(file: File): Promise<void> {
                 if (import.meta.env.DEV) {
                     window.__lastResult = undefined
                 }
+                blacklist.clear()
                 showLoading()
 
                 const fileReaderPromise = new Promise<string>(
@@ -828,15 +835,6 @@
                 }, 50)
             })
 
-            for (const checkbox of [filterWhite, filterBlack, filterTransparent]) {
-                checkbox.addEventListener("change", () => {
-                    try {
-                        runRenderPipeline()
-                    } catch {
-                        showError("Unexpected error.")
-                    }
-                })
-            }
         </script>
     </body>
 </html>

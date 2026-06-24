@@ -6,6 +6,7 @@ export interface ColourEntry {
   count: number;
   percentage: number;
   isTransparent: boolean;
+  quantizedKey: string;
 }
 
 export function quantize(value: number, bucketSize: number): number {
@@ -13,19 +14,24 @@ export function quantize(value: number, bucketSize: number): number {
   return Math.min(255, Math.max(0, rounded));
 }
 
-export function reaggregate(map: RawMap, bucketSize: number): AggregatedMap {
-  const result: AggregatedMap = {};
+export function reaggregateWithBlacklist(
+  map: RawMap,
+  bucketSize: number,
+  blacklist: Set<string>,
+): { included: AggregatedMap; excluded: AggregatedMap } {
+  const included: AggregatedMap = {};
+  const excluded: AggregatedMap = {};
 
   for (const [key, count] of Object.entries(map)) {
+    const target = blacklist.has(key) ? excluded : included;
+
     if (key === 'transparent') {
-      result['transparent'] = (result['transparent'] ?? 0) + count;
+      target['transparent'] = (target['transparent'] ?? 0) + count;
       continue;
     }
 
     const parts = key.split(',');
-    if (parts.length !== 3) {
-      throw new Error(`Malformed colour key: "${key}"`);
-    }
+    if (parts.length !== 3) throw new Error(`Malformed colour key: "${key}"`);
     const red = quantize(parseInt(parts[0]!, 10), bucketSize);
     const green = quantize(parseInt(parts[1]!, 10), bucketSize);
     const blue = quantize(parseInt(parts[2]!, 10), bucketSize);
@@ -35,48 +41,42 @@ export function reaggregate(map: RawMap, bucketSize: number): AggregatedMap {
     }
 
     const quantizedKey = `${red},${green},${blue}`;
-    result[quantizedKey] = (result[quantizedKey] ?? 0) + count;
+    target[quantizedKey] = (target[quantizedKey] ?? 0) + count;
   }
 
-  return result;
+  // A quantized bucket with both included and excluded pixels stays in included.
+  for (const key of Object.keys(excluded)) {
+    if (key in included) delete excluded[key];
+  }
+
+  return { included, excluded };
+}
+
+export function rawKeysForBucket(
+  map: RawMap,
+  bucketKey: string,
+  bucketSize: number,
+): string[] {
+  if (bucketKey === 'transparent') {
+    return 'transparent' in map ? ['transparent'] : [];
+  }
+  const parts = bucketKey.split(',');
+  const qr = parseInt(parts[0]!, 10);
+  const qg = parseInt(parts[1]!, 10);
+  const qb = parseInt(parts[2]!, 10);
+  return Object.keys(map).filter(key => {
+    if (key === 'transparent') return false;
+    const kp = key.split(',');
+    return (
+      quantize(parseInt(kp[0]!, 10), bucketSize) === qr &&
+      quantize(parseInt(kp[1]!, 10), bucketSize) === qg &&
+      quantize(parseInt(kp[2]!, 10), bucketSize) === qb
+    );
+  });
 }
 
 export function toHex(red: number, green: number, blue: number): string {
   return '#' + [red, green, blue].map(channel => channel.toString(16).padStart(2, '0')).join('');
-}
-
-export interface FilterOptions {
-  ignoreWhite: boolean;
-  ignoreBlack: boolean;
-  ignoreTransparent: boolean;
-}
-
-function rgbToLightness(red: number, green: number, blue: number): number {
-  return (Math.max(red, green, blue) + Math.min(red, green, blue)) / 510;
-}
-
-export function filterAggregated(map: AggregatedMap, options: FilterOptions): AggregatedMap {
-  const result: AggregatedMap = {};
-
-  for (const [key, count] of Object.entries(map)) {
-    if (key === 'transparent') {
-      if (!options.ignoreTransparent) result[key] = count;
-      continue;
-    }
-
-    const parts = key.split(',');
-    const red = parseInt(parts[0]!, 10);
-    const green = parseInt(parts[1]!, 10);
-    const blue = parseInt(parts[2]!, 10);
-    const lightness = rgbToLightness(red, green, blue);
-
-    if (options.ignoreWhite && lightness > 0.9) continue;
-    if (options.ignoreBlack && lightness < 0.1) continue;
-
-    result[key] = count;
-  }
-
-  return result;
 }
 
 export function sortedColours(map: AggregatedMap, totalPixels: number): ColourEntry[] {
@@ -89,13 +89,12 @@ export function sortedColours(map: AggregatedMap, totalPixels: number): ColourEn
         count,
         percentage: (count / totalPixels) * 100,
         isTransparent: true,
+        quantizedKey: 'transparent',
       };
     }
 
     const parts = key.split(',');
-    if (parts.length !== 3) {
-      throw new Error(`Malformed colour key: "${key}"`);
-    }
+    if (parts.length !== 3) throw new Error(`Malformed colour key: "${key}"`);
     const red = parseInt(parts[0]!, 10);
     const green = parseInt(parts[1]!, 10);
     const blue = parseInt(parts[2]!, 10);
@@ -105,6 +104,7 @@ export function sortedColours(map: AggregatedMap, totalPixels: number): ColourEn
       count,
       percentage: (count / totalPixels) * 100,
       isTransparent: false,
+      quantizedKey: key,
     };
   });
 

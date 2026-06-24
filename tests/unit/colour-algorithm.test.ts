@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { quantize, reaggregate, toHex, sortedColours } from '../../src/lib/colour-algorithm.ts';
+import { quantize, reaggregateWithBlacklist, rawKeysForBucket, toHex, sortedColours } from '../../src/lib/colour-algorithm.ts';
+
+const noBlacklist = new Set<string>();
+const reaggregate = (map: Parameters<typeof reaggregateWithBlacklist>[0], bucketSize: number) =>
+  reaggregateWithBlacklist(map, bucketSize, noBlacklist).included;
 
 describe('quantize', () => {
   it('identity at bucketSize 1', () => {
@@ -37,7 +41,7 @@ describe('quantize', () => {
   });
 });
 
-describe('reaggregate', () => {
+describe('reaggregateWithBlacklist (via reaggregate helper)', () => {
   it('single key with bucketSize 1 is a no-op', () => {
     expect(reaggregate({ '255,0,0': 5 }, 1)).toEqual({ '255,0,0': 5 });
   });
@@ -65,6 +69,56 @@ describe('reaggregate', () => {
   it('throws on malformed colour key', () => {
     expect(() => reaggregate({ 'bad-key': 1 }, 10)).toThrow('Malformed colour key: "bad-key"');
   });
+
+  it('blacklisted raw key goes to excluded, not included', () => {
+    const map = { '255,0,0': 10, '0,0,255': 5 };
+    const bl = new Set(['255,0,0']);
+    const { included, excluded } = reaggregateWithBlacklist(map, 1, bl);
+    expect(included).toEqual({ '0,0,255': 5 });
+    expect(excluded).toEqual({ '255,0,0': 10 });
+  });
+
+  it('blacklisted transparent goes to excluded', () => {
+    const map = { 'transparent': 8, '0,0,0': 2 };
+    const bl = new Set(['transparent']);
+    const { included, excluded } = reaggregateWithBlacklist(map, 1, bl);
+    expect(included).toEqual({ '0,0,0': 2 });
+    expect(excluded).toEqual({ 'transparent': 8 });
+  });
+
+  it('mixed bucket (both blacklisted and non-blacklisted raw keys quantize to same bucket) stays in included', () => {
+    // At bucketSize=10, '11,0,0' and '14,0,0' both map to '10,0,0'
+    const map = { '11,0,0': 3, '14,0,0': 7 };
+    const bl = new Set(['11,0,0']);
+    const { included, excluded } = reaggregateWithBlacklist(map, 10, bl);
+    // '14,0,0' is not blacklisted → included gets '10,0,0': 7
+    // '11,0,0' is blacklisted → excluded would get '10,0,0': 3, but since it's also in included, it's removed from excluded
+    expect(included['10,0,0']).toBe(7);
+    expect(excluded['10,0,0']).toBeUndefined();
+  });
+});
+
+describe('rawKeysForBucket', () => {
+  it('returns raw keys that map to the given quantized bucket', () => {
+    const map = { '11,0,0': 3, '14,0,0': 7, '100,0,0': 2 };
+    const keys = rawKeysForBucket(map, '10,0,0', 10);
+    expect(keys.sort()).toEqual(['11,0,0', '14,0,0']);
+  });
+
+  it('returns transparent key when bucket is transparent', () => {
+    const map = { 'transparent': 5, '255,0,0': 3 };
+    expect(rawKeysForBucket(map, 'transparent', 10)).toEqual(['transparent']);
+  });
+
+  it('returns empty array when transparent bucket key absent from map', () => {
+    expect(rawKeysForBucket({ '255,0,0': 3 }, 'transparent', 10)).toEqual([]);
+  });
+
+  it('does not include transparent key when looking up a colour bucket', () => {
+    const map = { 'transparent': 5, '10,0,0': 3 };
+    const keys = rawKeysForBucket(map, '10,0,0', 10);
+    expect(keys).not.toContain('transparent');
+  });
 });
 
 describe('toHex', () => {
@@ -87,7 +141,7 @@ describe('toHex', () => {
 describe('sortedColours', () => {
   it('single RGB entry', () => {
     const result = sortedColours({ '255,0,0': 4 }, 4);
-    expect(result).toEqual([{ hex: '#ff0000', count: 4, percentage: 100, isTransparent: false }]);
+    expect(result).toEqual([{ hex: '#ff0000', count: 4, percentage: 100, isTransparent: false, quantizedKey: '255,0,0' }]);
   });
 
   it('sorted descending by count', () => {
@@ -104,8 +158,8 @@ describe('sortedColours', () => {
     const result = sortedColours({ '255,0,0': 3, 'transparent': 1 }, 4);
     const red = result.find(entry => entry.hex === '#ff0000')!;
     const transparent = result.find(entry => entry.isTransparent)!;
-    expect(red).toEqual({ hex: '#ff0000', count: 3, percentage: 75, isTransparent: false });
-    expect(transparent).toEqual({ hex: 'transparent', count: 1, percentage: 25, isTransparent: true });
+    expect(red).toEqual({ hex: '#ff0000', count: 3, percentage: 75, isTransparent: false, quantizedKey: '255,0,0' });
+    expect(transparent).toEqual({ hex: 'transparent', count: 1, percentage: 25, isTransparent: true, quantizedKey: 'transparent' });
     expect(result[0]!.hex).toBe('#ff0000');
   });
 
