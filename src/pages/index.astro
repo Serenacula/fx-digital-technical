@@ -540,18 +540,6 @@
                 BlacklistEntry,
             } from "../lib/colour-algorithm.ts"
 
-            declare global {
-                interface Window {
-                    __lastResult:
-                        | { map: RawMap; totalPixels: number }
-                        | undefined
-                    __lastRendered: ColourEntry[] | undefined
-                    __recalcCount: number
-                    __delayProcessing: number | undefined
-                    __createObjectURLCount: number | undefined
-                }
-            }
-
             const fileInput = document.getElementById(
                 "file-input",
             ) as HTMLInputElement
@@ -596,11 +584,6 @@
             let debounceTimer: ReturnType<typeof setTimeout> | undefined
             let busyHintTimer: ReturnType<typeof setTimeout> | undefined
             let isProcessing: boolean = false
-
-            window.__recalcCount = 0
-            window.__delayProcessing = undefined
-            window.__lastResult = undefined
-            window.__lastRendered = undefined
 
             function syncSliderFill(): void {
                 const pct =
@@ -795,10 +778,6 @@
                 fileInput.disabled = false
                 slider.disabled = false
 
-                if (import.meta.env.DEV) {
-                    window.__lastRendered = included
-                    window.__recalcCount = window.__recalcCount + 1
-                }
             }
 
             function runRenderPipeline(): void {
@@ -820,9 +799,6 @@
             }
 
             async function handleFile(file: File): Promise<void> {
-                if (import.meta.env.DEV) {
-                    window.__lastResult = undefined
-                }
                 blacklist = []
                 showLoading()
 
@@ -838,22 +814,10 @@
                     },
                 )
 
-                const processImagePromise = (async () => {
-                    if (import.meta.env.DEV) {
-                        const delay = window.__delayProcessing
-                        if (delay !== undefined && delay > 0) {
-                            await new Promise((resolve) =>
-                                setTimeout(resolve, delay),
-                            )
-                        }
-                    }
-                    return processImage(file)
-                })()
-
                 try {
                     const [previewUrl, result] = await Promise.all([
                         fileReaderPromise,
-                        processImagePromise,
+                        processImage(file),
                     ])
                     rawMap = result.map
                     totalPixels = result.totalPixels
