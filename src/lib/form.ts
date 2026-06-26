@@ -1,17 +1,31 @@
 export type Form = ReturnType<typeof getForm>
 
+function requireElement<ElementType extends Element>(
+    document: Document,
+    id: string,
+    method: 'getElementById' | 'querySelector' = 'getElementById'
+): ElementType {
+    const element = method === 'getElementById'
+        ? document.getElementById(id)
+        : document.querySelector(id)
+    if (!element) {
+        throw new Error(`Required element not found: "${id}"`)
+    }
+    return element as ElementType
+}
+
 export const getForm = (document: Document) => ({
-    fileInput: document.getElementById('file-input') as HTMLInputElement,
-    previewArea: document.getElementById('preview-area') as HTMLDivElement,
-    previewImage: document.getElementById('preview-image') as HTMLImageElement,
-    detailName: document.getElementById('detail-name') as HTMLDivElement,
-    detailMeta: document.getElementById('detail-meta') as HTMLDivElement,
-    slider: document.getElementById('quantize-slider') as HTMLInputElement,
-    sliderValue: document.getElementById('slider-value') as HTMLSpanElement,
-    emptyPanel: document.getElementById('empty-state') as HTMLDivElement,
-    loadingPanel: document.getElementById('loading-state') as HTMLDivElement,
-    errorPanel: document.getElementById('error-state') as HTMLDivElement,
-    chart: document.getElementById('chart') as HTMLDivElement,
-    dropOverlay: document.getElementById('drop-overlay') as HTMLDivElement,
-    dropHint: document.querySelector('#drop-overlay .drop-hint') as HTMLElement,
+    fileInput: requireElement<HTMLInputElement>(document, 'file-input'),
+    previewArea: requireElement<HTMLDivElement>(document, 'preview-area'),
+    previewImage: requireElement<HTMLImageElement>(document, 'preview-image'),
+    detailName: requireElement<HTMLDivElement>(document, 'detail-name'),
+    detailMeta: requireElement<HTMLDivElement>(document, 'detail-meta'),
+    slider: requireElement<HTMLInputElement>(document, 'quantize-slider'),
+    sliderValue: requireElement<HTMLSpanElement>(document, 'slider-value'),
+    emptyPanel: requireElement<HTMLDivElement>(document, 'empty-state'),
+    loadingPanel: requireElement<HTMLDivElement>(document, 'loading-state'),
+    errorPanel: requireElement<HTMLDivElement>(document, 'error-state'),
+    chart: requireElement<HTMLDivElement>(document, 'chart'),
+    dropOverlay: requireElement<HTMLDivElement>(document, 'drop-overlay'),
+    dropHint: requireElement<HTMLElement>(document, '#drop-overlay .drop-hint', 'querySelector'),
 })

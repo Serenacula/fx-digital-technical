@@ -36,6 +36,10 @@ export class Controls {
     }
 
     private syncSliderFill(): void {
+        if (+this.slider.max === +this.slider.min) {
+            this.slider.style.setProperty('--fill-pct', '0%')
+            return
+        }
         const pct = ((+this.slider.value - +this.slider.min) / (+this.slider.max - +this.slider.min)) * 100
         this.slider.style.setProperty('--fill-pct', `${pct}%`)
     }

@@ -182,4 +182,14 @@ describe('AggregationEngine blacklist', () => {
         expect(excluded).toHaveLength(1)
         expect(included.every(entry => !entry.isTransparent)).toBe(true)
     })
+
+    it('included percentage reflects share of total image pixels, not just included pixels', () => {
+        // rawMap has 4 pixels total; totalPixels is 8 (simulating 4 banned elsewhere)
+        // After banning green, red (3 pixels) should be ~37.5% of 8, not 100% of 3
+        const engine = makeEngine({ '255,0,0': 3, '0,255,0': 1 }, 8)
+        engine.ban({ quantizedKey: '0,255,0', bucketSize: 1, hex: '#00ff00', isTransparent: false })
+        const { included } = engine.aggregateRgb(1)
+        expect(included).toHaveLength(1)
+        expect(included[0]!.percentage).toBeCloseTo(37.5, 3)
+    })
 })

@@ -31,6 +31,7 @@ export interface AggregationResult {
 export class AggregationEngine {
     private imageProcessor: ImageProcessor
     private blacklist: BlacklistEntry[] = []
+    private _parsedKeyCache: { rawMap: RawMap; parsed: Map<string, [number, number, number]> } | null = null
 
     constructor(imageProcessor: ImageProcessor) {
         this.imageProcessor = imageProcessor
@@ -56,9 +57,10 @@ export class AggregationEngine {
             return { included: [], excluded: [] }
         }
 
+        this.ensureParsedKeyCache(rawMap)
+
         const excludedKeys = this.buildExcludedKeys(rawMap)
         const includedMap = this.reaggregate(rawMap, bucketSize, excludedKeys)
-        const includedTotal = Object.values(includedMap).reduce((sum, count) => sum + count, 0)
 
         const excluded: ExcludedEntry[] = this.blacklist.map(entry => {
             const keys = this.rawKeysForBucket(rawMap, entry.quantizedKey, entry.bucketSize)
@@ -69,7 +71,21 @@ export class AggregationEngine {
             return { ...entry, percentage }
         })
 
-        return { included: this.toColourEntries(includedMap, includedTotal), excluded }
+        return { included: this.toColourEntries(includedMap, this.imageProcessor.totalPixels), excluded }
+    }
+
+    private ensureParsedKeyCache(rawMap: RawMap): void {
+        if (this._parsedKeyCache?.rawMap === rawMap) {
+            return
+        }
+        const parsed = new Map<string, [number, number, number]>()
+        for (const key of Object.keys(rawMap)) {
+            if (key === 'transparent') {
+                continue
+            }
+            parsed.set(key, this.parseRgbKey(key))
+        }
+        this._parsedKeyCache = { rawMap, parsed }
     }
 
     private sameBan(a: BlacklistEntry, b: BlacklistEntry): boolean {
@@ -93,7 +109,8 @@ export class AggregationEngine {
             if (key === 'transparent') {
                 return false
             }
-            const [red, green, blue] = this.parseRgbKey(key)
+            const cached = this._parsedKeyCache?.parsed.get(key)
+            const [red, green, blue] = cached ?? this.parseRgbKey(key)
             return (
                 quantize(red, bucketSize) === quantRed &&
                 quantize(green, bucketSize) === quantGreen &&
@@ -122,7 +139,8 @@ export class AggregationEngine {
                 result['transparent'] = (result['transparent'] ?? 0) + count
                 continue
             }
-            const [red, green, blue] = this.parseRgbKey(key)
+            const cached = this._parsedKeyCache?.parsed.get(key)
+            const [red, green, blue] = cached ?? this.parseRgbKey(key)
             const quantizedKey = `${quantize(red, bucketSize)},${quantize(green, bucketSize)},${quantize(blue, bucketSize)}`
             result[quantizedKey] = (result[quantizedKey] ?? 0) + count
         }

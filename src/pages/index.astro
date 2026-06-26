@@ -561,6 +561,9 @@
             }
 
             function runRenderPipeline(): void {
+                if (dropHandler.busy) {
+                    return
+                }
                 if (!imageProcessor.rawMap) {
                     return
                 }
@@ -583,8 +586,9 @@
                 showLoading()
                 try {
                     await imageProcessor.handleFile(file)
+                    form.detailName.textContent = file.name
                     form.previewImage.onload = () => {
-                        form.detailName.textContent = file.name
+                        // naturalWidth/naturalHeight are only available after image decode completes
                         form.detailMeta.textContent = `${MIME_TYPE_LABELS[file.type] ?? file.type} · ${form.previewImage.naturalWidth} × ${form.previewImage.naturalHeight} px`
                     }
                     form.previewImage.src = imageProcessor.previewUrl!
@@ -609,6 +613,7 @@
                 const file = form.fileInput.files?.[0]
                 if (file) {
                     onFileSelected(file).catch(() => showError("Unexpected error."))
+                    form.fileInput.value = ""
                 }
             })
         </script>
