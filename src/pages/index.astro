@@ -544,7 +544,7 @@
             const barChart = new BarChart(form.chart, form.emptyPanel, form.loadingPanel, form.errorPanel, engine)
             const controls = new Controls(form.slider, form.sliderValue)
             const dropHandler = new DropHandler(form.dropOverlay, form.dropHint)
-            const previewPanel = new PreviewPanel(form.previewImage, form.detailName, form.detailMeta)
+            const previewPanel = new PreviewPanel(form.previewImage, form.detailName, form.detailMeta, form.previewArea, form.fileInput)
 
             function runRenderPipeline(): void {
                 if (dropHandler.busy) {
@@ -588,8 +588,6 @@
             }
 
             dropHandler.onFileDrop = (file) => onFileSelected(file).catch(() => {})
-
-            form.previewArea.addEventListener("click", () => form.fileInput.click())
 
             form.fileInput.addEventListener("change", () => {
                 if (dropHandler.busy) {

@@ -5,10 +5,17 @@ export class PreviewPanel {
     private name: HTMLElement
     private meta: HTMLElement
 
-    constructor(image: HTMLImageElement, name: HTMLElement, meta: HTMLElement) {
+    constructor(
+        image: HTMLImageElement,
+        name: HTMLElement,
+        meta: HTMLElement,
+        previewArea: HTMLElement,
+        fileInput: HTMLInputElement,
+    ) {
         this.image = image
         this.name = name
         this.meta = meta
+        previewArea.addEventListener("click", () => fileInput.click())
     }
 
     show(file: File, previewUrl: string): void {
