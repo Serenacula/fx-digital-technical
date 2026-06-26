@@ -79,3 +79,5 @@ Initial thoughts on how to implement were:
 All three implementation styles had issues. 1 leaves our definition of 'white' vague, and ends up with a complicated UI where the user is defining white via lightness and saturation. 2 felt like it was overcomplicating the problem. 3 does not leave a good intuitive solution for how to handle quant changes.
 
 I ended up going with 3, since I figured it has the nicest UI, and isn't too difficult to solve.
+
+I solved the quant problem by including the quant as part of the excluded colour: so any colour of that colourset gets included.
