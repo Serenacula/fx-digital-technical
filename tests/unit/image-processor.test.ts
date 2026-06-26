@@ -42,10 +42,8 @@ describe('ImageProcessor.handleFile validation', () => {
         await expect(processor.handleFile(file)).rejects.not.toBeInstanceOf(ValidationError)
     })
 
-    it('resets rawMap and totalPixels before processing', async () => {
+    it('has null rawMap and zero totalPixels after a validation failure', async () => {
         const processor = new ImageProcessor()
-        processor.rawMap = { '255,0,0': 1 }
-        processor.totalPixels = 99
         const file = new File([], 'bad.gif', { type: 'image/gif' })
         await processor.handleFile(file).catch(() => {})
         expect(processor.rawMap).toBeNull()

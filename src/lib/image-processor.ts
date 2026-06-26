@@ -18,14 +18,18 @@ export class ValidationError extends Error {
 }
 
 export class ImageProcessor {
-    rawMap: RawMap | null = null
-    totalPixels: number = 0
-    previewUrl: string | null = null
+    private _rawMap: RawMap | null = null
+    private _totalPixels: number = 0
+    private _previewUrl: string | null = null
+
+    get rawMap(): RawMap | null { return this._rawMap }
+    get totalPixels(): number { return this._totalPixels }
+    get previewUrl(): string | null { return this._previewUrl }
 
     async handleFile(file: File): Promise<void> {
-        this.rawMap = null
-        this.totalPixels = 0
-        this.previewUrl = null
+        this._rawMap = null
+        this._totalPixels = 0
+        this._previewUrl = null
         this.validate(file)
 
         const [previewUrl] = await Promise.all([
@@ -33,7 +37,7 @@ export class ImageProcessor {
             this.extractPixels(file),
         ])
 
-        this.previewUrl = previewUrl
+        this._previewUrl = previewUrl
     }
 
     private validate(file: File): void {
@@ -74,9 +78,9 @@ export class ImageProcessor {
 
             const imageData = context.getImageData(0, 0, canvas.width, canvas.height)
             const pixels = imageData.data
-            this.totalPixels = canvas.width * canvas.height
+            this._totalPixels = canvas.width * canvas.height
 
-            if (this.totalPixels === 0) {
+            if (this._totalPixels === 0) {
                 throw new ValidationError('Image has no pixels.')
             }
 
@@ -94,7 +98,7 @@ export class ImageProcessor {
                     map[key] = (map[key] ?? 0) + 1
                 }
             }
-            this.rawMap = map
+            this._rawMap = map
         } finally {
             URL.revokeObjectURL(objectUrl)
         }
