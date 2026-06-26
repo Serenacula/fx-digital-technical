@@ -544,24 +544,6 @@
             const controls = new Controls(form.slider, form.sliderValue)
             const dropHandler = new DropHandler(form.dropOverlay, form.dropHint)
 
-            function showLoading(): void {
-                dropHandler.busy = true
-                controls.disable()
-                barChart.showMessage(ChartDisplay.Loading)
-                form.fileInput.disabled = true
-            }
-
-            function showError(message: string): void {
-                dropHandler.busy = false
-                controls.disable()
-                barChart.showMessage(ChartDisplay.Error, message)
-                form.detailName.textContent = ""
-                form.detailMeta.textContent = ""
-                form.fileInput.disabled = false
-                form.previewImage.src = ""
-                form.previewImage.classList.remove("visible")
-            }
-
             function runRenderPipeline(): void {
                 if (dropHandler.busy) {
                     return
@@ -587,7 +569,10 @@
                 form.previewImage.onload = null
                 try {
                     engine.resetBlacklist()
-                    showLoading()
+                    dropHandler.busy = true
+                    controls.disable()
+                    barChart.showMessage(ChartDisplay.Loading)
+                    form.fileInput.disabled = true
                     await imageProcessor.handleFile(file)
                     form.detailName.textContent = file.name
                     form.previewImage.onload = () => {
@@ -600,9 +585,14 @@
                     dropHandler.busy = false
                     runRenderPipeline()
                 } catch (error) {
-                    showError(error instanceof ValidationError ? error.message : "Could not read image.")
-                    form.previewImage.classList.remove("visible")
+                    dropHandler.busy = false
+                    controls.disable()
+                    barChart.showMessage(ChartDisplay.Error, error instanceof ValidationError ? error.message : "Could not read image.")
+                    form.detailName.textContent = ""
+                    form.detailMeta.textContent = ""
+                    form.fileInput.disabled = false
                     form.previewImage.src = ""
+                    form.previewImage.classList.remove("visible")
                 }
             }
 
