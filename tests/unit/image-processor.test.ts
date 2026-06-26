@@ -29,19 +29,6 @@ describe('ImageProcessor.handleFile validation', () => {
         )
     })
 
-    it('rejects oversized file', async () => {
-        const processor = new ImageProcessor()
-        const file = new File([new ArrayBuffer(17 * 1024 * 1024)], 'big.png', { type: 'image/png' })
-        await expect(processor.handleFile(file)).rejects.toThrow(ValidationError)
-        await expect(processor.handleFile(file)).rejects.toThrow('File is too large. Maximum size is 16 MB.')
-    })
-
-    it('does not reject file at exactly 16 MB for size', async () => {
-        const processor = new ImageProcessor()
-        const file = new File([new ArrayBuffer(16 * 1024 * 1024)], 'limit.png', { type: 'image/png' })
-        await expect(processor.handleFile(file)).rejects.not.toBeInstanceOf(ValidationError)
-    })
-
     it('has null rawMap and zero totalPixels after a validation failure', async () => {
         const processor = new ImageProcessor()
         const file = new File([], 'bad.gif', { type: 'image/gif' })

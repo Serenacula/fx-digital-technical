@@ -16,8 +16,6 @@ const ALLOWED_MIME_TYPES = new Set([
     'image/bmp',
 ])
 
-const MAX_FILE_SIZE = 16 * 1024 * 1024
-
 export class ValidationError extends Error {
     constructor(message: string) {
         super(message)
@@ -53,9 +51,6 @@ export class ImageProcessor {
             throw new ValidationError(
                 'Unsupported file type. Please upload a JPEG, PNG, WebP, AVIF, or BMP.'
             )
-        }
-        if (file.size > MAX_FILE_SIZE) {
-            throw new ValidationError('File is too large. Maximum size is 16 MB.')
         }
     }
 
