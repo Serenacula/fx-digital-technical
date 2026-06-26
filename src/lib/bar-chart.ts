@@ -135,7 +135,7 @@ export class BarChart {
         label.appendChild(hexLine)
         const groupingLine = document.createElement('span')
         groupingLine.className = 'colour-grouping'
-        groupingLine.textContent = `grouping: ${entry.bucketSize}`
+        groupingLine.textContent = `quantisation: ${entry.bucketSize}`
         label.appendChild(groupingLine)
         row.appendChild(label)
 
