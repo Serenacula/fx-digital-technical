@@ -9,8 +9,7 @@ export class Controls {
         this.sliderValue = sliderValue
 
         this.slider.disabled = true
-        this.slider.value = '16'
-        this.sliderValue.textContent = '16'
+        this.sliderValue.textContent = this.slider.value
         this.syncSliderFill()
 
         this.slider.addEventListener('input', () => {
