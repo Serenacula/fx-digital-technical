@@ -32,6 +32,7 @@ export class AggregationEngine {
     private imageProcessor: ImageProcessor
     private blacklist: BlacklistEntry[] = []
     private _parsedKeyCache: { rawMap: RawMap; parsed: Map<string, [number, number, number]> } | null = null
+    private _bucketIndexCache: { rawMap: RawMap; indexes: Map<number, Map<string, string[]>> } | null = null
 
     constructor(imageProcessor: ImageProcessor) {
         this.imageProcessor = imageProcessor
@@ -110,26 +111,44 @@ export class AggregationEngine {
         return [parseInt(parts[0]!, 10), parseInt(parts[1]!, 10), parseInt(parts[2]!, 10)]
     }
 
-    private rawKeysForBucket(map: RawMap, bucketKey: string, bucketSize: number): string[] {
-        if (bucketKey === 'transparent') {
-            return 'transparent' in map ? ['transparent'] : []
+    private getBucketIndex(rawMap: RawMap, bucketSize: number): Map<string, string[]> {
+        if (this._bucketIndexCache?.rawMap !== rawMap) {
+            this._bucketIndexCache = { rawMap, indexes: new Map() }
         }
-        const [quantRed, quantGreen, quantBlue] = this.parseRgbKey(bucketKey)
-        return Object.keys(map).filter(key => {
+        const cached = this._bucketIndexCache.indexes.get(bucketSize)
+        if (cached) {
+            return cached
+        }
+        const index = new Map<string, string[]>()
+        if ('transparent' in rawMap) {
+            index.set('transparent', ['transparent'])
+        }
+        for (const key of Object.keys(rawMap)) {
             if (key === 'transparent') {
-                return false
+                continue
             }
-            const cached = this._parsedKeyCache?.parsed.get(key)
-            if (!cached) {
+            const parsed = this._parsedKeyCache!.parsed.get(key)
+            if (!parsed) {
                 throw new Error(`Cache invariant violated: key "${key}" not found in parsedKeyCache`)
             }
-            const [red, green, blue] = cached
-            return (
-                quantize(red, bucketSize) === quantRed &&
-                quantize(green, bucketSize) === quantGreen &&
-                quantize(blue, bucketSize) === quantBlue
-            )
-        })
+            const [red, green, blue] = parsed
+            const quantizedKey = `${quantize(red, bucketSize)},${quantize(green, bucketSize)},${quantize(blue, bucketSize)}`
+            const existing = index.get(quantizedKey)
+            if (existing) {
+                existing.push(key)
+            } else {
+                index.set(quantizedKey, [key])
+            }
+        }
+        this._bucketIndexCache.indexes.set(bucketSize, index)
+        return index
+    }
+
+    private rawKeysForBucket(rawMap: RawMap, bucketKey: string, bucketSize: number): string[] {
+        if (bucketKey === 'transparent') {
+            return 'transparent' in rawMap ? ['transparent'] : []
+        }
+        return this.getBucketIndex(rawMap, bucketSize).get(bucketKey) ?? []
     }
 
     private reaggregate(map: RawMap, bucketSize: number, excludedKeys: Set<string>): AggregatedMap {
