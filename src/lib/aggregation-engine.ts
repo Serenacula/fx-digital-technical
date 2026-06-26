@@ -1,5 +1,6 @@
 import type { RawMap } from './image-processor.ts'
 import type { ImageProcessor } from './image-processor.ts'
+import { quantize, toHex } from './colour-utils.ts'
 
 type AggregatedMap = Record<string, number>
 
@@ -25,17 +26,6 @@ export interface ExcludedEntry extends BlacklistEntry {
 export interface AggregationResult {
     included: ColourEntry[]
     excluded: ExcludedEntry[]
-}
-
-export function quantize(value: number, bucketSize: number): number {
-    const rounded = Math.round(value / bucketSize) * bucketSize
-    return Math.min(255, Math.max(0, rounded))
-}
-
-export function toHex(red: number, green: number, blue: number): string {
-    return '#' + [red, green, blue]
-        .map(channel => channel.toString(16).padStart(2, '0'))
-        .join('')
 }
 
 export class AggregationEngine {

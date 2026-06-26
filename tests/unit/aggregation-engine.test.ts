@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { AggregationEngine, quantize, toHex } from '../../src/lib/aggregation-engine.ts'
+import { AggregationEngine } from '../../src/lib/aggregation-engine.ts'
+import { quantize, toHex } from '../../src/lib/colour-utils.ts'
 import type { ImageProcessor } from '../../src/lib/image-processor.ts'
 import type { RawMap } from '../../src/lib/image-processor.ts'
 
