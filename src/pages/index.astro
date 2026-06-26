@@ -608,11 +608,10 @@
                     showError(error instanceof ValidationError ? error.message : "Could not read image.")
                     form.previewImage.classList.remove("visible")
                     form.previewImage.src = ""
-                    throw error
                 }
             }
 
-            dropHandler.onFileDrop = (file) => onFileSelected(file).catch(() => showError("Unexpected error."))
+            dropHandler.onFileDrop = (file) => onFileSelected(file).catch(() => {})
 
             form.previewArea.addEventListener("click", () => form.fileInput.click())
 
@@ -622,7 +621,7 @@
                 }
                 const file = form.fileInput.files?.[0]
                 if (file) {
-                    onFileSelected(file).catch(() => showError("Unexpected error."))
+                    onFileSelected(file).catch(() => {})
                     form.fileInput.value = ""
                 }
             })
