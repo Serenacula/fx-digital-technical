@@ -527,13 +527,13 @@
             import { getForm, MIME_TYPE_LABELS } from "../lib/form.ts"
             import { ImageProcessor, ValidationError } from "../lib/image-processor.ts"
             import { AggregationEngine } from "../lib/aggregation-engine.ts"
-            import { BarChart } from "../lib/bar-chart.ts"
+            import { BarChart, ChartDisplay } from "../lib/bar-chart.ts"
             import { Controls } from "../lib/controls.ts"
 
             const form = getForm(document)
             const imageProcessor = new ImageProcessor()
             const engine = new AggregationEngine(imageProcessor)
-            const barChart = new BarChart(form.chart, engine)
+            const barChart = new BarChart(form.chart, form.emptyPanel, form.loadingPanel, form.errorPanel, engine)
             const controls = new Controls(form.slider, form.sliderValue)
 
             let busyHintTimer: ReturnType<typeof setTimeout> | undefined
@@ -543,21 +543,14 @@
             function showLoading(): void {
                 isProcessing = true
                 controls.disable()
-                form.emptyPanel.style.display = "none"
-                form.loadingPanel.style.display = ""
-                form.errorPanel.style.display = "none"
-                form.chart.classList.remove("visible")
+                barChart.showMessage(ChartDisplay.Loading)
                 form.fileInput.disabled = true
             }
 
             function showError(message: string): void {
                 isProcessing = false
                 controls.disable()
-                form.emptyPanel.style.display = "none"
-                form.loadingPanel.style.display = "none"
-                form.errorPanel.style.display = ""
-                form.errorPanel.textContent = message
-                form.chart.classList.remove("visible")
+                barChart.showMessage(ChartDisplay.Error, message)
                 form.detailName.textContent = ""
                 form.detailMeta.textContent = ""
                 form.fileInput.disabled = false
@@ -575,9 +568,6 @@
                 barChart.render(included, excluded, bucketSize)
                 isProcessing = false
                 controls.enable()
-                form.emptyPanel.style.display = "none"
-                form.loadingPanel.style.display = "none"
-                form.errorPanel.style.display = "none"
                 form.fileInput.disabled = false
             }
 
