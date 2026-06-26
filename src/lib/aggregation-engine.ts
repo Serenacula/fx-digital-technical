@@ -14,7 +14,7 @@ export function toHex(red: number, green: number, blue: number): string {
 
 type AggregatedMap = Record<string, number>
 
-export interface ColourEntry {
+export interface ColorEntry {
     hex: string
     count: number
     percentage: number
@@ -34,7 +34,7 @@ export interface ExcludedEntry extends BlacklistEntry {
 }
 
 export interface AggregationResult {
-    included: ColourEntry[]
+    included: ColorEntry[]
     excluded: ExcludedEntry[]
 }
 
@@ -92,7 +92,7 @@ export class AggregationEngine {
             return { ...entry, percentage }
         })
 
-        return { included: this.toColourEntries(includedMap, includedTotal), excluded }
+        return { included: this.toColorEntries(includedMap, includedTotal), excluded }
     }
 
     private ensureParsedKeyCache(rawMap: RawMap): void {
@@ -179,12 +179,12 @@ export class AggregationEngine {
         return result
     }
 
-    private toColourEntries(map: AggregatedMap, totalPixels: number): ColourEntry[] {
+    private toColorEntries(map: AggregatedMap, totalPixels: number): ColorEntry[] {
         if (totalPixels <= 0) {
             return []
         }
         return Object.entries(map)
-            .map(([key, count]): ColourEntry => {
+            .map(([key, count]): ColorEntry => {
                 if (key === 'transparent') {
                     return { hex: 'transparent', count, percentage: (count / totalPixels) * 100, isTransparent: true, quantizedKey: 'transparent' }
                 }

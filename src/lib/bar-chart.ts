@@ -1,4 +1,4 @@
-import type { ColourEntry, BlacklistEntry, ExcludedEntry } from './aggregation-engine.ts'
+import type { ColorEntry, BlacklistEntry, ExcludedEntry } from './aggregation-engine.ts'
 import type { AggregationEngine } from './aggregation-engine.ts'
 
 const EYE_OPEN_SVG = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`
@@ -59,7 +59,7 @@ export class BarChart {
         }
     }
 
-    render(included: ColourEntry[], excluded: ExcludedEntry[], bucketSize: number): void {
+    render(included: ColorEntry[], excluded: ExcludedEntry[], bucketSize: number): void {
         this.currentBucketSize = bucketSize
         this.container.innerHTML = ''
         for (const entry of included) {
@@ -87,7 +87,7 @@ export class BarChart {
         return track
     }
 
-    private buildIncludedRow(entry: ColourEntry): HTMLElement {
+    private buildIncludedRow(entry: ColorEntry): HTMLElement {
         const row = document.createElement('div')
         row.className = 'chart-row'
 
