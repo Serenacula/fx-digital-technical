@@ -529,26 +529,24 @@
             import { AggregationEngine } from "../lib/aggregation-engine.ts"
             import { BarChart, ChartDisplay } from "../lib/bar-chart.ts"
             import { Controls } from "../lib/controls.ts"
+            import { DropHandler } from "../lib/drop-handler.ts"
 
             const form = getForm(document)
             const imageProcessor = new ImageProcessor()
             const engine = new AggregationEngine(imageProcessor)
             const barChart = new BarChart(form.chart, form.emptyPanel, form.loadingPanel, form.errorPanel, engine)
             const controls = new Controls(form.slider, form.sliderValue)
-
-            let busyHintTimer: ReturnType<typeof setTimeout> | undefined
-            let isProcessing = false
-            const DROP_HINT_TEXT = form.dropHint.textContent ?? "Drop image here"
+            const dropHandler = new DropHandler(form.dropOverlay, form.dropHint)
 
             function showLoading(): void {
-                isProcessing = true
+                dropHandler.busy = true
                 controls.disable()
                 barChart.showMessage(ChartDisplay.Loading)
                 form.fileInput.disabled = true
             }
 
             function showError(message: string): void {
-                isProcessing = false
+                dropHandler.busy = false
                 controls.disable()
                 barChart.showMessage(ChartDisplay.Error, message)
                 form.detailName.textContent = ""
@@ -566,7 +564,7 @@
                 }
                 const { included, excluded } = engine.aggregateRgb(bucketSize)
                 barChart.render(included, excluded, bucketSize)
-                isProcessing = false
+                dropHandler.busy = false
                 controls.enable()
                 form.fileInput.disabled = false
             }
@@ -594,55 +592,15 @@
                 }
             }
 
+            dropHandler.onFileDrop = (file) => onFileSelected(file).catch(() => showError("Unexpected error."))
+
             form.previewArea.addEventListener("click", () => form.fileInput.click())
 
             form.fileInput.addEventListener("change", () => {
-                if (isProcessing) {
+                if (dropHandler.busy) {
                     return
                 }
                 const file = form.fileInput.files?.[0]
-                if (file) {
-                    onFileSelected(file).catch(() => showError("Unexpected error."))
-                }
-            })
-
-            window.addEventListener("dragenter", (event) => {
-                if (!event.dataTransfer?.types.includes("Files")) {
-                    return
-                }
-                event.preventDefault()
-                form.dropOverlay.classList.add("visible")
-            })
-
-            window.addEventListener("dragleave", (event) => {
-                if (!event.dataTransfer?.types.includes("Files")) {
-                    return
-                }
-                if (event.relatedTarget === null) {
-                    form.dropOverlay.classList.remove("visible")
-                }
-            })
-
-            window.addEventListener("dragover", (event) => {
-                if (event.dataTransfer?.types.includes("Files")) {
-                    event.preventDefault()
-                }
-            })
-
-            window.addEventListener("drop", (event) => {
-                event.preventDefault()
-                form.dropOverlay.classList.remove("visible")
-                if (isProcessing) {
-                    clearTimeout(busyHintTimer)
-                    form.dropHint.textContent = "Processing… please wait"
-                    form.dropOverlay.classList.add("visible")
-                    busyHintTimer = setTimeout(() => {
-                        form.dropOverlay.classList.remove("visible")
-                        form.dropHint.textContent = DROP_HINT_TEXT
-                    }, 1500)
-                    return
-                }
-                const file = event.dataTransfer?.files[0]
                 if (file) {
                     onFileSelected(file).catch(() => showError("Unexpected error."))
                 }
