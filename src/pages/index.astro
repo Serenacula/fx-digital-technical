@@ -528,77 +528,72 @@
             import { ImageProcessor, ValidationError } from "../lib/image-processor.ts"
             import { AggregationEngine } from "../lib/aggregation-engine.ts"
             import { BarChart } from "../lib/bar-chart.ts"
+            import { Controls } from "../lib/controls.ts"
 
             const form = getForm(document)
             const imageProcessor = new ImageProcessor()
             const engine = new AggregationEngine(imageProcessor)
             const barChart = new BarChart(form.chart, engine)
+            const controls = new Controls(form.slider, form.sliderValue)
 
-            let debounceTimer: ReturnType<typeof setTimeout> | undefined
             let busyHintTimer: ReturnType<typeof setTimeout> | undefined
             let isProcessing = false
             const DROP_HINT_TEXT = form.dropHint.textContent ?? "Drop image here"
 
-            function syncSliderFill(): void {
-                const pct = ((+form.slider.value - +form.slider.min) / (+form.slider.max - +form.slider.min)) * 100
-                form.slider.style.setProperty("--fill-pct", `${pct}%`)
-            }
-
-            form.slider.disabled = true
-            form.slider.value = "16"
-            form.sliderValue.textContent = "16"
-            syncSliderFill()
-
             function showLoading(): void {
-                clearTimeout(debounceTimer)
                 isProcessing = true
-                form.emptyState.style.display = "none"
-                form.loadingState.style.display = ""
-                form.errorState.style.display = "none"
+                controls.disable()
+                form.emptyPanel.style.display = "none"
+                form.loadingPanel.style.display = ""
+                form.errorPanel.style.display = "none"
                 form.chart.classList.remove("visible")
                 form.fileInput.disabled = true
-                form.slider.disabled = true
             }
 
             function showError(message: string): void {
                 isProcessing = false
-                form.emptyState.style.display = "none"
-                form.loadingState.style.display = "none"
-                form.errorState.style.display = ""
-                form.errorState.textContent = message
+                controls.disable()
+                form.emptyPanel.style.display = "none"
+                form.loadingPanel.style.display = "none"
+                form.errorPanel.style.display = ""
+                form.errorPanel.textContent = message
                 form.chart.classList.remove("visible")
                 form.detailName.textContent = ""
                 form.detailMeta.textContent = ""
                 form.fileInput.disabled = false
-                form.slider.disabled = true
             }
 
             function runRenderPipeline(): void {
-                if (!imageProcessor.rawMap) return
-                const bucketSize = parseInt(form.slider.value, 10)
-                if (!Number.isFinite(bucketSize) || bucketSize < 1) return
+                if (!imageProcessor.rawMap) {
+                    return
+                }
+                const bucketSize = controls.bucketSize
+                if (!Number.isFinite(bucketSize) || bucketSize < 1) {
+                    return
+                }
                 const { included, excluded } = engine.aggregateRgb(bucketSize)
                 barChart.render(included, excluded, bucketSize)
                 isProcessing = false
-                form.emptyState.style.display = "none"
-                form.loadingState.style.display = "none"
-                form.errorState.style.display = "none"
+                controls.enable()
+                form.emptyPanel.style.display = "none"
+                form.loadingPanel.style.display = "none"
+                form.errorPanel.style.display = "none"
                 form.fileInput.disabled = false
-                form.slider.disabled = false
             }
 
             barChart.onToggle = runRenderPipeline
+            controls.onBucketSizeChange = runRenderPipeline
 
-            async function handleFile(file: File): Promise<void> {
+            async function onFileSelected(file: File): Promise<void> {
                 engine.resetBlacklist()
                 showLoading()
                 try {
-                    const previewUrl = await imageProcessor.processFile(file)
+                    await imageProcessor.handleFile(file)
                     form.previewImage.onload = () => {
                         form.detailName.textContent = file.name
                         form.detailMeta.textContent = `${MIME_TYPE_LABELS[file.type] ?? file.type} · ${form.previewImage.naturalWidth} × ${form.previewImage.naturalHeight} px`
                     }
-                    form.previewImage.src = previewUrl
+                    form.previewImage.src = imageProcessor.previewUrl!
                     form.previewImage.classList.add("visible")
                     runRenderPipeline()
                 } catch (error) {
@@ -612,24 +607,36 @@
             form.previewArea.addEventListener("click", () => form.fileInput.click())
 
             form.fileInput.addEventListener("change", () => {
-                if (isProcessing) return
+                if (isProcessing) {
+                    return
+                }
                 const file = form.fileInput.files?.[0]
-                if (file) handleFile(file).catch(() => showError("Unexpected error."))
+                if (file) {
+                    onFileSelected(file).catch(() => showError("Unexpected error."))
+                }
             })
 
             window.addEventListener("dragenter", (event) => {
-                if (!event.dataTransfer?.types.includes("Files")) return
+                if (!event.dataTransfer?.types.includes("Files")) {
+                    return
+                }
                 event.preventDefault()
                 form.dropOverlay.classList.add("visible")
             })
 
             window.addEventListener("dragleave", (event) => {
-                if (!event.dataTransfer?.types.includes("Files")) return
-                if (event.relatedTarget === null) form.dropOverlay.classList.remove("visible")
+                if (!event.dataTransfer?.types.includes("Files")) {
+                    return
+                }
+                if (event.relatedTarget === null) {
+                    form.dropOverlay.classList.remove("visible")
+                }
             })
 
             window.addEventListener("dragover", (event) => {
-                if (event.dataTransfer?.types.includes("Files")) event.preventDefault()
+                if (event.dataTransfer?.types.includes("Files")) {
+                    event.preventDefault()
+                }
             })
 
             window.addEventListener("drop", (event) => {
@@ -646,16 +653,9 @@
                     return
                 }
                 const file = event.dataTransfer?.files[0]
-                if (file) handleFile(file).catch(() => showError("Unexpected error."))
-            })
-
-            form.slider.addEventListener("input", () => {
-                form.sliderValue.textContent = form.slider.value
-                syncSliderFill()
-                clearTimeout(debounceTimer)
-                debounceTimer = setTimeout(() => {
-                    try { runRenderPipeline() } catch { showError("Unexpected error.") }
-                }, 50)
+                if (file) {
+                    onFileSelected(file).catch(() => showError("Unexpected error."))
+                }
             })
         </script>
     </body>

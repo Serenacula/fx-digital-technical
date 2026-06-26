@@ -20,10 +20,12 @@ export class ValidationError extends Error {
 export class ImageProcessor {
     rawMap: RawMap | null = null
     totalPixels: number = 0
+    previewUrl: string | null = null
 
-    async processFile(file: File): Promise<string> {
+    async handleFile(file: File): Promise<void> {
         this.rawMap = null
         this.totalPixels = 0
+        this.previewUrl = null
         this.validate(file)
 
         const [previewUrl] = await Promise.all([
@@ -31,7 +33,7 @@ export class ImageProcessor {
             this.extractPixels(file),
         ])
 
-        return previewUrl
+        this.previewUrl = previewUrl
     }
 
     private validate(file: File): void {
@@ -64,7 +66,9 @@ export class ImageProcessor {
             canvas.height = image.naturalHeight
 
             const context = canvas.getContext('2d')
-            if (!context) throw new Error('Could not read image.')
+            if (!context) {
+                throw new Error('Could not read image.')
+            }
 
             context.drawImage(image, 0, 0)
 
@@ -72,7 +76,9 @@ export class ImageProcessor {
             const pixels = imageData.data
             this.totalPixels = canvas.width * canvas.height
 
-            if (this.totalPixels === 0) throw new ValidationError('Image has no pixels.')
+            if (this.totalPixels === 0) {
+                throw new ValidationError('Image has no pixels.')
+            }
 
             const map: RawMap = {}
             for (let index = 0; index < pixels.length; index += 4) {
