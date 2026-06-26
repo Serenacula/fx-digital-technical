@@ -1,5 +1,13 @@
 export type RawMap = Record<string, number>
 
+export const MIME_TYPE_LABELS: Record<string, string> = {
+    'image/jpeg': 'JPEG',
+    'image/png': 'PNG',
+    'image/webp': 'WebP',
+    'image/avif': 'AVIF',
+    'image/bmp': 'BMP',
+}
+
 const ALLOWED_MIME_TYPES = new Set([
     'image/jpeg',
     'image/png',

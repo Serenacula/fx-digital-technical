@@ -1,11 +1,3 @@
-export const MIME_TYPE_LABELS: Record<string, string> = {
-    'image/jpeg': 'JPEG',
-    'image/png': 'PNG',
-    'image/webp': 'WebP',
-    'image/avif': 'AVIF',
-    'image/bmp': 'BMP',
-}
-
 export type Form = ReturnType<typeof getForm>
 
 export const getForm = (document: Document) => ({
