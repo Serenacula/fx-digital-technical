@@ -47,18 +47,13 @@ export class AggregationEngine {
     }
 
     ban(entry: BlacklistEntry): void {
-        const isDuplicate = this.blacklist.some(
-            existing => existing.quantizedKey === entry.quantizedKey && existing.bucketSize === entry.bucketSize
-        )
-        if (!isDuplicate) {
+        if (!this.blacklist.some(existing => this.sameBan(existing, entry))) {
             this.blacklist.push(entry)
         }
     }
 
     unban(entry: BlacklistEntry): void {
-        this.blacklist = this.blacklist.filter(
-            existing => !(existing.quantizedKey === entry.quantizedKey && existing.bucketSize === entry.bucketSize)
-        )
+        this.blacklist = this.blacklist.filter(existing => !this.sameBan(existing, entry))
     }
 
     resetBlacklist(): void {
@@ -85,6 +80,10 @@ export class AggregationEngine {
         })
 
         return { included: this.toColourEntries(includedMap, includedTotal), excluded }
+    }
+
+    private sameBan(a: BlacklistEntry, b: BlacklistEntry): boolean {
+        return a.quantizedKey === b.quantizedKey && a.bucketSize === b.bucketSize
     }
 
     private parseRgbKey(key: string): [number, number, number] {
