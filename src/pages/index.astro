@@ -544,6 +544,8 @@
             const controls = new Controls(form.slider, form.sliderValue)
             const dropHandler = new DropHandler(form.dropOverlay, form.dropHint)
 
+            window.__recalcCount = 0
+
             function showLoading(): void {
                 dropHandler.busy = true
                 controls.disable()
@@ -558,6 +560,8 @@
                 form.detailName.textContent = ""
                 form.detailMeta.textContent = ""
                 form.fileInput.disabled = false
+                form.previewImage.src = ""
+                form.previewImage.classList.remove("visible")
             }
 
             function runRenderPipeline(): void {
@@ -573,6 +577,8 @@
                 }
                 const { included, excluded } = engine.aggregateRgb(bucketSize)
                 barChart.render(included, excluded, bucketSize)
+                window.__recalcCount = (window.__recalcCount ?? 0) + 1
+                window.__lastRendered = included
                 dropHandler.busy = false
                 controls.enable()
                 form.fileInput.disabled = false
@@ -587,11 +593,13 @@
                     engine.resetBlacklist()
                     showLoading()
                     await imageProcessor.handleFile(file)
+                    window.__lastResult = { map: imageProcessor.rawMap!, totalPixels: imageProcessor.totalPixels }
                     form.detailName.textContent = file.name
                     form.previewImage.onload = () => {
                         // naturalWidth/naturalHeight are only available after image decode completes
                         form.detailMeta.textContent = `${MIME_TYPE_LABELS[file.type] ?? file.type} · ${form.previewImage.naturalWidth} × ${form.previewImage.naturalHeight} px`
                     }
+                    form.previewImage.src = ""
                     form.previewImage.src = imageProcessor.previewUrl!
                     form.previewImage.classList.add("visible")
                     dropHandler.busy = false
@@ -600,6 +608,7 @@
                     showError(error instanceof ValidationError ? error.message : "Could not read image.")
                     form.previewImage.classList.remove("visible")
                     form.previewImage.src = ""
+                    throw error
                 }
             }
 

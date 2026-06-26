@@ -1,4 +1,5 @@
-import type { RawMap, ColourEntry } from '../../src/lib/colour-algorithm.ts';
+import type { RawMap } from '../../src/lib/image-processor.ts';
+import type { ColourEntry } from '../../src/lib/aggregation-engine.ts';
 
 declare global {
   interface Window {

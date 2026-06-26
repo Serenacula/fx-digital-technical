@@ -183,13 +183,24 @@ describe('AggregationEngine blacklist', () => {
         expect(included.every(entry => !entry.isTransparent)).toBe(true)
     })
 
-    it('included percentage reflects share of total image pixels, not just included pixels', () => {
-        // rawMap has 4 pixels total; totalPixels is 8 (simulating 4 banned elsewhere)
-        // After banning green, red (3 pixels) should be ~37.5% of 8, not 100% of 3
-        const engine = makeEngine({ '255,0,0': 3, '0,255,0': 1 }, 8)
+    it('included percentages rescale to 100% among included entries after a ban', () => {
+        // rawMap: 3 red pixels + 1 green pixel. After banning green, included = 3 red pixels.
+        // includedTotal = 3, so red should be 100% of the remaining visible palette.
+        const engine = makeEngine({ '255,0,0': 3, '0,255,0': 1 }, 4)
         engine.ban({ quantizedKey: '0,255,0', bucketSize: 1, hex: '#00ff00', isTransparent: false })
         const { included } = engine.aggregateRgb(1)
         expect(included).toHaveLength(1)
-        expect(included[0]!.percentage).toBeCloseTo(37.5, 3)
+        expect(included[0]!.percentage).toBeCloseTo(100, 3)
+    })
+
+    it('included percentages rescale correctly when multiple colours remain after ban', () => {
+        // rawMap: 3 red + 1 green + 6 blue = 10 pixels. Ban green.
+        // includedTotal = 9 (3 red + 6 blue). red = 3/9 * 100 ≈ 33.33%, blue = 6/9 * 100 ≈ 66.67%
+        const engine = makeEngine({ '255,0,0': 3, '0,255,0': 1, '0,0,255': 6 }, 10)
+        engine.ban({ quantizedKey: '0,255,0', bucketSize: 1, hex: '#00ff00', isTransparent: false })
+        const { included } = engine.aggregateRgb(1)
+        expect(included).toHaveLength(2)
+        const total = included.reduce((sum, entry) => sum + entry.percentage, 0)
+        expect(total).toBeCloseTo(100, 3)
     })
 })

@@ -24,7 +24,7 @@ export class DropHandler {
             if (!event.dataTransfer?.types.includes('Files')) {
                 return
             }
-            if (event.relatedTarget === null) {
+            if (!event.relatedTarget || !(document.documentElement.contains(event.relatedTarget as Node))) {
                 this.dropOverlay.classList.remove('visible')
             }
         })

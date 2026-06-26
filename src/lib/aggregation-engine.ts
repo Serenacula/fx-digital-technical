@@ -70,6 +70,7 @@ export class AggregationEngine {
         }
 
         const includedMap = this.reaggregate(rawMap, bucketSize, excludedKeys)
+        const includedTotal = Object.values(includedMap).reduce((sum, count) => sum + count, 0)
 
         const excluded: ExcludedEntry[] = this.blacklist.map(entry => {
             const keys = blacklistKeys.get(entry) ?? []
@@ -80,7 +81,7 @@ export class AggregationEngine {
             return { ...entry, percentage }
         })
 
-        return { included: this.toColourEntries(includedMap, this.imageProcessor.totalPixels), excluded }
+        return { included: this.toColourEntries(includedMap, includedTotal), excluded }
     }
 
     private ensureParsedKeyCache(rawMap: RawMap): void {
@@ -119,7 +120,10 @@ export class AggregationEngine {
                 return false
             }
             const cached = this._parsedKeyCache?.parsed.get(key)
-            const [red, green, blue] = cached ?? this.parseRgbKey(key)
+            if (!cached) {
+                throw new Error(`Cache invariant violated: key "${key}" not found in parsedKeyCache`)
+            }
+            const [red, green, blue] = cached
             return (
                 quantize(red, bucketSize) === quantRed &&
                 quantize(green, bucketSize) === quantGreen &&
