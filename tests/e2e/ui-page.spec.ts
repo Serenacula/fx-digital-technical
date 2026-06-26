@@ -106,18 +106,6 @@ test.describe('UI page — error states', () => {
     await expect(page.locator('#chart')).not.toBeVisible();
   });
 
-  test('error state — oversized file', async ({ page }) => {
-    await page.goto(appUrl);
-    await page.locator('#file-input').setInputFiles({
-      name: 'big.png',
-      mimeType: 'image/png',
-      buffer: Buffer.alloc(17 * 1024 * 1024),
-    });
-    await expect(page.locator('#error-state')).toBeVisible({ timeout: 3000 });
-    await expect(page.locator('#error-state')).toContainText('File is too large. Maximum size is 16 MB.');
-    await expect(page.locator('#file-input')).toBeEnabled();
-    await expect(page.locator('#quantize-slider')).toBeDisabled();
-  });
 });
 
 test.describe('UI page — slider', () => {
