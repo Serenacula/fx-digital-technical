@@ -524,394 +524,158 @@
         </div>
 
         <script>
-            import {
-                buildExcludedKeys,
-                reaggregateExcluding,
-                rawKeysForBucket,
-                sortedColours,
-            } from "../lib/colour-algorithm.ts"
-            import {
-                processImage,
-                ValidationError,
-            } from "../lib/image-processor.ts"
-            import type {
-                RawMap,
-                ColourEntry,
-                BlacklistEntry,
-            } from "../lib/colour-algorithm.ts"
+            import { getForm } from "../lib/form.ts"
+            import { ImageProcessor, ValidationError, MIME_TYPE_LABELS } from "../lib/image-processor.ts"
+            import { AggregationEngine } from "../lib/aggregation-engine.ts"
+            import { BarChart } from "../lib/bar-chart.ts"
 
-            const fileInput = document.getElementById(
-                "file-input",
-            ) as HTMLInputElement
-            const previewArea = document.getElementById(
-                "preview-area",
-            ) as HTMLDivElement
-            const previewImage = document.getElementById(
-                "preview-image",
-            ) as HTMLImageElement
-            const dropOverlay = document.getElementById(
-                "drop-overlay",
-            ) as HTMLDivElement
-            const imageDetails = document.getElementById(
-                "image-details",
-            ) as HTMLDivElement
-            const detailName = document.getElementById(
-                "detail-name",
-            ) as HTMLDivElement
-            const detailMeta = document.getElementById(
-                "detail-meta",
-            ) as HTMLDivElement
-            const slider = document.getElementById(
-                "quantize-slider",
-            ) as HTMLInputElement
-            const sliderValue = document.getElementById(
-                "slider-value",
-            ) as HTMLSpanElement
-            const emptyState = document.getElementById(
-                "empty-state",
-            ) as HTMLDivElement
-            const loadingState = document.getElementById(
-                "loading-state",
-            ) as HTMLDivElement
-            const errorState = document.getElementById(
-                "error-state",
-            ) as HTMLDivElement
-            const chart = document.getElementById("chart") as HTMLDivElement
+            const form = getForm(document)
+            const imageProcessor = new ImageProcessor()
+            const engine = new AggregationEngine(imageProcessor)
 
-            let rawMap: RawMap | null = null
-            let totalPixels: number = 0
-            let blacklist: BlacklistEntry[] = []
             let debounceTimer: ReturnType<typeof setTimeout> | undefined
             let busyHintTimer: ReturnType<typeof setTimeout> | undefined
-            let isProcessing: boolean = false
+            let isProcessing = false
+            const DROP_HINT_TEXT = form.dropHint.textContent ?? "Drop image here"
 
             function syncSliderFill(): void {
-                const pct =
-                    ((+slider.value - +slider.min) /
-                        (+slider.max - +slider.min)) *
-                    100
-                slider.style.setProperty("--fill-pct", `${pct}%`)
+                const pct = ((+form.slider.value - +form.slider.min) / (+form.slider.max - +form.slider.min)) * 100
+                form.slider.style.setProperty("--fill-pct", `${pct}%`)
             }
 
-            slider.disabled = true
-            slider.value = "16"
-            sliderValue.textContent = "16"
+            form.slider.disabled = true
+            form.slider.value = "16"
+            form.sliderValue.textContent = "16"
             syncSliderFill()
-
-            const mimeTypeLabels: Record<string, string> = {
-                "image/jpeg": "JPEG",
-                "image/png": "PNG",
-                "image/webp": "WebP",
-                "image/avif": "AVIF",
-                "image/bmp": "BMP",
-            }
 
             function showLoading(): void {
                 clearTimeout(debounceTimer)
                 isProcessing = true
-                emptyState.style.display = "none"
-                loadingState.style.display = ""
-                errorState.style.display = "none"
-                chart.classList.remove("visible")
-                fileInput.disabled = true
-                slider.disabled = true
+                form.emptyState.style.display = "none"
+                form.loadingState.style.display = ""
+                form.errorState.style.display = "none"
+                form.chart.classList.remove("visible")
+                form.fileInput.disabled = true
+                form.slider.disabled = true
             }
 
             function showError(message: string): void {
                 isProcessing = false
-                emptyState.style.display = "none"
-                loadingState.style.display = "none"
-                errorState.style.display = ""
-                errorState.textContent = message
-                chart.classList.remove("visible")
-                detailName.textContent = ""
-                detailMeta.textContent = ""
-                fileInput.disabled = false
-                slider.disabled = true
-                rawMap = null
-                totalPixels = 0
+                form.emptyState.style.display = "none"
+                form.loadingState.style.display = "none"
+                form.errorState.style.display = ""
+                form.errorState.textContent = message
+                form.chart.classList.remove("visible")
+                form.detailName.textContent = ""
+                form.detailMeta.textContent = ""
+                form.fileInput.disabled = false
+                form.slider.disabled = true
             }
 
-            const EYE_OPEN_SVG = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`
-            const EYE_CLOSED_SVG = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>`
-
-            function buildBar(
-                hex: string,
-                isTransparent: boolean,
-                pct: number,
-            ): HTMLElement {
-                const barContainer = document.createElement("div")
-                barContainer.className = "bar-track"
-                const bar = document.createElement("div")
-                bar.className = "bar"
-                bar.style.width = `${pct}%`
-                if (isTransparent) {
-                    bar.style.background =
-                        "repeating-linear-gradient(45deg, #ccc 0px, #ccc 4px, #fff 4px, #fff 8px)"
-                    bar.style.border = "1px solid black"
-                } else {
-                    bar.style.backgroundColor = hex
-                }
-                barContainer.appendChild(bar)
-                return barContainer
-            }
-
-            function buildIncludedRow(entry: ColourEntry): HTMLElement {
-                const row = document.createElement("div")
-                row.className = "chart-row"
-
-                const label = document.createElement("div")
-                label.className = "colour-label"
-                label.textContent = entry.isTransparent ? "transparent" : entry.hex
-                row.appendChild(label)
-
-                row.appendChild(buildBar(entry.hex, entry.isTransparent, entry.percentage))
-
-                const percentLabel = document.createElement("span")
-                percentLabel.className = "percentage-label"
-                percentLabel.textContent = `${entry.percentage.toFixed(1)}%`
-                row.appendChild(percentLabel)
-
-                const excludeBtn = document.createElement("button")
-                excludeBtn.className = "exclude-btn"
-                excludeBtn.innerHTML = EYE_OPEN_SVG
-                excludeBtn.title = "Exclude colour"
-                excludeBtn.addEventListener("click", () => {
-                    const bucketSize = parseInt(slider.value, 10)
-                    const duplicate = blacklist.some(
-                        e =>
-                            e.quantizedKey === entry.quantizedKey &&
-                            e.bucketSize === bucketSize,
-                    )
-                    if (!duplicate) {
-                        blacklist.push({
-                            quantizedKey: entry.quantizedKey,
-                            bucketSize,
-                            hex: entry.hex,
-                            isTransparent: entry.isTransparent,
-                        })
-                    }
-                    try {
-                        runRenderPipeline()
-                    } catch {
-                        showError("Unexpected error.")
-                    }
-                })
-                row.appendChild(excludeBtn)
-
-                return row
-            }
-
-            function buildExcludedRow(entry: BlacklistEntry): HTMLElement {
-                const row = document.createElement("div")
-                row.className = "chart-row excluded"
-
-                const label = document.createElement("div")
-                label.className = "colour-label"
-                const hexLine = document.createElement("span")
-                hexLine.textContent = entry.isTransparent ? "transparent" : entry.hex
-                label.appendChild(hexLine)
-                const groupingLine = document.createElement("span")
-                groupingLine.className = "colour-grouping"
-                groupingLine.textContent = `grouping: ${entry.bucketSize}`
-                label.appendChild(groupingLine)
-                row.appendChild(label)
-
-                const keys = rawKeysForBucket(
-                    rawMap!,
-                    entry.quantizedKey,
-                    entry.bucketSize,
-                )
-                const count = keys.reduce(
-                    (sum, key) => sum + (rawMap![key] ?? 0),
-                    0,
-                )
-                const pct = totalPixels > 0 ? (count / totalPixels) * 100 : 0
-                row.appendChild(buildBar(entry.hex, entry.isTransparent, pct))
-
-                const percentLabel = document.createElement("span")
-                percentLabel.className = "percentage-label"
-                percentLabel.textContent = "—"
-                row.appendChild(percentLabel)
-
-                const excludeBtn = document.createElement("button")
-                excludeBtn.className = "exclude-btn"
-                excludeBtn.innerHTML = EYE_CLOSED_SVG
-                excludeBtn.title = "Re-include colour"
-                excludeBtn.addEventListener("click", () => {
-                    blacklist = blacklist.filter(
-                        e =>
-                            !(
-                                e.quantizedKey === entry.quantizedKey &&
-                                e.bucketSize === entry.bucketSize
-                            ),
-                    )
-                    try {
-                        runRenderPipeline()
-                    } catch {
-                        showError("Unexpected error.")
-                    }
-                })
-                row.appendChild(excludeBtn)
-
-                return row
-            }
-
-            function renderChart(
-                included: ColourEntry[],
-                excluded: BlacklistEntry[],
-            ): void {
+            function showChart(): void {
                 isProcessing = false
-                chart.innerHTML = ""
-
-                for (const entry of included) {
-                    chart.appendChild(buildIncludedRow(entry))
-                }
-                for (const entry of excluded) {
-                    chart.appendChild(buildExcludedRow(entry))
-                }
-
-                emptyState.style.display = "none"
-                loadingState.style.display = "none"
-                errorState.style.display = "none"
-                chart.classList.add("visible")
-                fileInput.disabled = false
-                slider.disabled = false
-
+                form.emptyState.style.display = "none"
+                form.loadingState.style.display = "none"
+                form.errorState.style.display = "none"
+                form.chart.classList.add("visible")
+                form.fileInput.disabled = false
+                form.slider.disabled = false
             }
+
+            let barChart!: BarChart
 
             function runRenderPipeline(): void {
-                if (rawMap === null) return
-                const bucketSize = parseInt(slider.value, 10)
+                if (!imageProcessor.rawMap) return
+                const bucketSize = parseInt(form.slider.value, 10)
                 if (!Number.isFinite(bucketSize) || bucketSize < 1) return
-                const excludedKeys = buildExcludedKeys(rawMap, blacklist)
-                const includedMap = reaggregateExcluding(
-                    rawMap,
-                    bucketSize,
-                    excludedKeys,
-                )
-                const includedTotal = Object.values(includedMap).reduce(
-                    (sum, count) => sum + count,
-                    0,
-                )
-                const includedEntries = sortedColours(includedMap, includedTotal)
-                renderChart(includedEntries, blacklist)
+                const { included, excluded } = engine.aggregateRgb(bucketSize)
+                barChart.render(included, excluded, bucketSize)
+                showChart()
             }
 
+            barChart = new BarChart(form.chart, engine, imageProcessor, runRenderPipeline)
+
             async function handleFile(file: File): Promise<void> {
-                blacklist = []
+                engine.resetBlacklist()
                 showLoading()
 
-                const fileReaderPromise = new Promise<string>(
-                    (resolve, reject) => {
-                        const reader = new FileReader()
-                        reader.onload = () => resolve(reader.result as string)
-                        reader.onerror = () =>
-                            reject(new Error("Could not read image."))
-                        reader.onabort = () =>
-                            reject(new Error("Could not read image."))
-                        reader.readAsDataURL(file)
-                    },
-                )
+                const fileReaderPromise = new Promise<string>((resolve, reject) => {
+                    const reader = new FileReader()
+                    reader.onload = () => resolve(reader.result as string)
+                    reader.onerror = () => reject(new Error("Could not read image."))
+                    reader.onabort = () => reject(new Error("Could not read image."))
+                    reader.readAsDataURL(file)
+                })
 
                 try {
-                    const [previewUrl, result] = await Promise.all([
+                    const [previewUrl] = await Promise.all([
                         fileReaderPromise,
-                        processImage(file),
+                        imageProcessor.loadFile(file),
                     ])
-                    rawMap = result.map
-                    totalPixels = result.totalPixels
-
-                    if (import.meta.env.DEV) {
-                        window.__lastResult = { map: rawMap, totalPixels }
+                    form.previewImage.onload = () => {
+                        const typeLabel = MIME_TYPE_LABELS[file.type] ?? file.type
+                        form.detailName.textContent = file.name
+                        form.detailMeta.textContent = `${typeLabel} · ${form.previewImage.naturalWidth} × ${form.previewImage.naturalHeight} px`
                     }
-
-                    previewImage.onload = () => {
-                        const typeLabel = mimeTypeLabels[file.type] ?? file.type
-                        detailName.textContent = file.name
-                        detailMeta.textContent = `${typeLabel} · ${previewImage.naturalWidth} × ${previewImage.naturalHeight} px`
-                    }
-                    previewImage.src = previewUrl
-                    previewImage.classList.add("visible")
-
+                    form.previewImage.src = previewUrl
+                    form.previewImage.classList.add("visible")
                     runRenderPipeline()
                 } catch (error) {
-                    if (error instanceof ValidationError) {
-                        showError(error.message)
-                    } else {
-                        showError("Could not read image.")
-                    }
-                    previewImage.classList.remove("visible")
-                    previewImage.onload = null
-                    previewImage.src = ""
+                    showError(error instanceof ValidationError ? error.message : "Could not read image.")
+                    form.previewImage.classList.remove("visible")
+                    form.previewImage.onload = null
+                    form.previewImage.src = ""
                 }
             }
 
-            previewArea.addEventListener("click", () => fileInput.click())
+            form.previewArea.addEventListener("click", () => form.fileInput.click())
 
-            fileInput.addEventListener("change", () => {
+            form.fileInput.addEventListener("change", () => {
                 if (isProcessing) return
-                const file = fileInput.files?.[0]
-                if (file)
-                    handleFile(file).catch(() => showError("Unexpected error."))
+                const file = form.fileInput.files?.[0]
+                if (file) handleFile(file).catch(() => showError("Unexpected error."))
             })
 
             window.addEventListener("dragenter", (event) => {
                 if (!event.dataTransfer?.types.includes("Files")) return
                 event.preventDefault()
-                dropOverlay.classList.add("visible")
+                form.dropOverlay.classList.add("visible")
             })
 
             window.addEventListener("dragleave", (event) => {
                 if (!event.dataTransfer?.types.includes("Files")) return
-                if (event.relatedTarget === null) {
-                    dropOverlay.classList.remove("visible")
-                }
+                if (event.relatedTarget === null) form.dropOverlay.classList.remove("visible")
             })
 
             window.addEventListener("dragover", (event) => {
-                if (event.dataTransfer?.types.includes("Files")) {
-                    event.preventDefault()
-                }
+                if (event.dataTransfer?.types.includes("Files")) event.preventDefault()
             })
-
-            const dropHint = dropOverlay.querySelector(
-                ".drop-hint",
-            ) as HTMLElement
-            const DROP_HINT_TEXT = dropHint?.textContent ?? "Drop image here"
 
             window.addEventListener("drop", (event) => {
                 event.preventDefault()
-                dropOverlay.classList.remove("visible")
+                form.dropOverlay.classList.remove("visible")
                 if (isProcessing) {
                     clearTimeout(busyHintTimer)
-                    dropHint.textContent = "Processing… please wait"
-                    dropOverlay.classList.add("visible")
+                    form.dropHint.textContent = "Processing… please wait"
+                    form.dropOverlay.classList.add("visible")
                     busyHintTimer = setTimeout(() => {
-                        dropOverlay.classList.remove("visible")
-                        dropHint.textContent = DROP_HINT_TEXT
+                        form.dropOverlay.classList.remove("visible")
+                        form.dropHint.textContent = DROP_HINT_TEXT
                     }, 1500)
                     return
                 }
                 const file = event.dataTransfer?.files[0]
-                if (file)
-                    handleFile(file).catch(() => showError("Unexpected error."))
+                if (file) handleFile(file).catch(() => showError("Unexpected error."))
             })
 
-            slider.addEventListener("input", () => {
-                sliderValue.textContent = slider.value
+            form.slider.addEventListener("input", () => {
+                form.sliderValue.textContent = form.slider.value
                 syncSliderFill()
-
                 clearTimeout(debounceTimer)
                 debounceTimer = setTimeout(() => {
-                    try {
-                        runRenderPipeline()
-                    } catch {
-                        showError("Unexpected error.")
-                    }
+                    try { runRenderPipeline() } catch { showError("Unexpected error.") }
                 }, 50)
             })
-
         </script>
     </body>
 </html>

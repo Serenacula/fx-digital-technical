@@ -30,16 +30,16 @@ export function rawKeysForBucket(
         return "transparent" in map ? ["transparent"] : []
     }
     const parts = bucketKey.split(",")
-    const qr = parseInt(parts[0]!, 10)
-    const qg = parseInt(parts[1]!, 10)
-    const qb = parseInt(parts[2]!, 10)
+    const quantRed = parseInt(parts[0]!, 10)
+    const quantGreen = parseInt(parts[1]!, 10)
+    const quantBlue = parseInt(parts[2]!, 10)
     return Object.keys(map).filter((key) => {
         if (key === "transparent") return false
-        const kp = key.split(",")
+        const channels = key.split(",")
         return (
-            quantize(parseInt(kp[0]!, 10), bucketSize) === qr &&
-            quantize(parseInt(kp[1]!, 10), bucketSize) === qg &&
-            quantize(parseInt(kp[2]!, 10), bucketSize) === qb
+            quantize(parseInt(channels[0]!, 10), bucketSize) === quantRed &&
+            quantize(parseInt(channels[1]!, 10), bucketSize) === quantGreen &&
+            quantize(parseInt(channels[2]!, 10), bucketSize) === quantBlue
         )
     })
 }
