@@ -594,6 +594,7 @@
                     }
                     form.previewImage.src = imageProcessor.previewUrl!
                     form.previewImage.classList.add("visible")
+                    dropHandler.busy = false
                     runRenderPipeline()
                 } catch (error) {
                     showError(error instanceof ValidationError ? error.message : "Could not read image.")
