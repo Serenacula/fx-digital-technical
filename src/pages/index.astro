@@ -544,8 +544,6 @@
             const controls = new Controls(form.slider, form.sliderValue)
             const dropHandler = new DropHandler(form.dropOverlay, form.dropHint)
 
-            window.__recalcCount = 0
-
             function showLoading(): void {
                 dropHandler.busy = true
                 controls.disable()
@@ -577,8 +575,6 @@
                 }
                 const { included, excluded } = engine.aggregateRgb(bucketSize)
                 barChart.render(included, excluded, bucketSize)
-                window.__recalcCount = (window.__recalcCount ?? 0) + 1
-                window.__lastRendered = included
                 dropHandler.busy = false
                 controls.enable()
                 form.fileInput.disabled = false
@@ -593,7 +589,6 @@
                     engine.resetBlacklist()
                     showLoading()
                     await imageProcessor.handleFile(file)
-                    window.__lastResult = { map: imageProcessor.rawMap!, totalPixels: imageProcessor.totalPixels }
                     form.detailName.textContent = file.name
                     form.previewImage.onload = () => {
                         // naturalWidth/naturalHeight are only available after image decode completes

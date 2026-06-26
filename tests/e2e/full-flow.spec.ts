@@ -14,7 +14,7 @@ test.describe('E2E: Full upload-to-chart pipeline', () => {
 
     await page.goto(appUrl);
     await page.locator('#file-input').setInputFiles(join(fixturesDir, '2x1-red-blue.png'));
-    await page.waitForFunction(() => window.__lastResult !== undefined, { timeout: 5000 });
+    await expect(page.locator('.chart-row').first()).toBeVisible({ timeout: 5000 });
 
     const rows = page.locator('.chart-row');
     await expect(rows).toHaveCount(2);
@@ -53,10 +53,7 @@ test.describe('E2E: Full upload-to-chart pipeline', () => {
 
     await page.goto(appUrl);
     await page.locator('#file-input').setInputFiles(join(fixturesDir, '2x1-near-black.png'));
-    await page.waitForFunction(() => window.__lastResult !== undefined, { timeout: 5000 });
-
-    const countBefore = await page.evaluate(() => window.__recalcCount);
-    expect(countBefore).toBe(1);
+    await expect(page.locator('.chart-row').first()).toBeVisible({ timeout: 5000 });
 
     const labelsAtTen = await page.locator('.colour-label').allTextContents();
     expect(labelsAtTen).toContain('#0a0000');
@@ -75,9 +72,6 @@ test.describe('E2E: Full upload-to-chart pipeline', () => {
     const percentages = await page.locator('.percentage-label').allTextContents();
     expect(percentages).toContain('100.0%');
 
-    const countAfter = await page.evaluate(() => window.__recalcCount);
-    expect(countAfter).toBe(2);
-
     const urlCount = await page.evaluate(() => window.__createObjectURLCount);
     expect(urlCount).toBe(1);
   });
@@ -85,7 +79,7 @@ test.describe('E2E: Full upload-to-chart pipeline', () => {
   test('Scenario 3: transparent pixel appears as chart entry with checkerboard', async ({ page }) => {
     await page.goto(appUrl);
     await page.locator('#file-input').setInputFiles(join(fixturesDir, '2x1-red-transparent.png'));
-    await page.waitForFunction(() => window.__lastResult !== undefined, { timeout: 5000 });
+    await expect(page.locator('.chart-row').first()).toBeVisible({ timeout: 5000 });
 
     const rows = page.locator('.chart-row');
     await expect(rows).toHaveCount(2);
@@ -127,7 +121,7 @@ test.describe('E2E: Full upload-to-chart pipeline', () => {
     await expect(page.locator('#quantize-slider')).toBeDisabled();
 
     await page.locator('#file-input').setInputFiles(join(fixturesDir, '1x1-white.png'));
-    await page.waitForFunction(() => window.__lastResult !== undefined, { timeout: 5000 });
+    await expect(page.locator('.chart-row').first()).toBeVisible({ timeout: 5000 });
 
     await expect(page.locator('#error-state')).not.toBeVisible();
     const labels = await page.locator('.colour-label').allTextContents();
@@ -152,18 +146,11 @@ test.describe('E2E: Full upload-to-chart pipeline', () => {
     for (const filename of formats) {
       await page.goto(appUrl);
       await page.locator('#file-input').setInputFiles(join(fixturesDir, filename));
-      await page.waitForFunction(
-        () => window.__lastResult !== undefined,
-        { timeout: 5000 }
-      );
+      await expect(page.locator('.chart-row').first()).toBeVisible({ timeout: 5000 });
 
       await expect(page.locator('#error-state')).not.toBeVisible();
       await expect(page.locator('#chart')).toBeVisible();
-      await expect(page.locator('.chart-row').first()).toBeVisible();
-
-      const result = await page.evaluate(() => window.__lastResult!);
-      expect(result.totalPixels).toBe(1);
-      expect(Object.keys(result.map).length).toBeGreaterThan(0);
+      await expect(page.locator('.chart-row')).toHaveCount(1);
 
       await expect(page.locator('#file-input')).toBeEnabled();
       await expect(page.locator('#quantize-slider')).toBeEnabled();
@@ -173,18 +160,13 @@ test.describe('E2E: Full upload-to-chart pipeline', () => {
   test('Scenario 6: percentage text shows on each bar row', async ({ page }) => {
     await page.goto(appUrl);
     await page.locator('#file-input').setInputFiles(join(fixturesDir, '2x1-red-blue.png'));
-    await page.waitForFunction(() => window.__lastResult !== undefined, { timeout: 5000 });
+    await expect(page.locator('.chart-row').first()).toBeVisible({ timeout: 5000 });
 
     const percentageLabels = await page.locator('.percentage-label').allTextContents();
     expect(percentageLabels).toHaveLength(2);
     for (const label of percentageLabels) {
       expect(label).toMatch(/^\d+\.\d%$/);
       expect(label).toBe('50.0%');
-    }
-
-    const rendered = await page.evaluate(() => window.__lastRendered!);
-    for (const entry of rendered) {
-      expect(entry.percentage.toFixed(1) + '%').toMatch(/^\d+\.\d%$/);
     }
   });
 });

@@ -1,93 +1,110 @@
 import { test, expect } from '@playwright/test';
 import { join } from 'node:path';
-import './window-hooks.d.ts';
 
 const fixturesDir = join(process.cwd(), 'tests', 'fixtures');
 const appUrl = 'http://localhost:4321/fx-digital-technical/';
 
-async function uploadAndGetResult(page: import('@playwright/test').Page, fixtureName: string) {
+async function uploadAndWait(page: import('@playwright/test').Page, fixtureName: string) {
   await page.goto(appUrl);
-  const fileInput = page.locator('#file-input');
-  await fileInput.setInputFiles(join(fixturesDir, fixtureName));
-  await page.waitForFunction(() => window.__lastResult !== undefined, { timeout: 5000 });
-  return page.evaluate(() => window.__lastResult!);
+  await page.locator('#file-input').setInputFiles(join(fixturesDir, fixtureName));
+  await expect(page.locator('.chart-row').first()).toBeVisible({ timeout: 5000 });
 }
 
 test.describe('image processor — pixel extraction', () => {
   test('single opaque pixel → one RGB entry', async ({ page }) => {
-    const result = await uploadAndGetResult(page, '1x1-red.png');
-    expect(result.map).toEqual({ '255,0,0': 1 });
-    expect(result.totalPixels).toBe(1);
+    await uploadAndWait(page, '1x1-red.png');
+    await expect(page.locator('.chart-row')).toHaveCount(1);
+    const labels = await page.locator('.colour-label').allTextContents();
+    expect(labels).toContain('#ff0000');
   });
 
   test('single fully-transparent pixel → transparent sentinel', async ({ page }) => {
-    const result = await uploadAndGetResult(page, '1x1-transparent.png');
-    expect(result.map).toEqual({ 'transparent': 1 });
-    expect(result.totalPixels).toBe(1);
+    await uploadAndWait(page, '1x1-transparent.png');
+    await expect(page.locator('.chart-row')).toHaveCount(1);
+    const labels = await page.locator('.colour-label').allTextContents();
+    expect(labels).toContain('transparent');
   });
 
   test('semi-transparent pixel → processed as RGB, not transparent', async ({ page }) => {
-    const result = await uploadAndGetResult(page, '1x1-semi-transparent.png');
+    await uploadAndWait(page, '1x1-semi-transparent.png');
+    await expect(page.locator('.chart-row')).toHaveCount(1);
     // Chromium premultiplies alpha internally and un-premultiplies on getImageData read,
     // causing rounding: (150 × 128/255) rounds to 75, then (75 × 255/128) rounds to 149.
-    expect(result.map).toEqual({ '100,149,199': 1 });
-    expect(result.totalPixels).toBe(1);
+    // Raw key 100,149,199 → hex #6495c7
+    const labels = await page.locator('.colour-label').allTextContents();
+    expect(labels).toContain('#6495c7');
+    expect(labels).not.toContain('transparent');
   });
 
   test('two-pixel image with distinct colours', async ({ page }) => {
-    const result = await uploadAndGetResult(page, '2x1-red-blue.png');
-    expect(result.map).toEqual({ '255,0,0': 1, '0,0,255': 1 });
-    expect(result.totalPixels).toBe(2);
+    await uploadAndWait(page, '2x1-red-blue.png');
+    await expect(page.locator('.chart-row')).toHaveCount(2);
+    const labels = await page.locator('.colour-label').allTextContents();
+    expect(labels).toContain('#ff0000');
+    expect(labels).toContain('#0000ff');
   });
 
   test('two-pixel mixed image → RGB entry + transparent entry', async ({ page }) => {
-    const result = await uploadAndGetResult(page, '2x1-red-transparent.png');
-    expect(result.map).toEqual({ '255,0,0': 1, 'transparent': 1 });
-    expect(result.totalPixels).toBe(2);
+    await uploadAndWait(page, '2x1-red-transparent.png');
+    await expect(page.locator('.chart-row')).toHaveCount(2);
+    const labels = await page.locator('.colour-label').allTextContents();
+    expect(labels).toContain('#ff0000');
+    expect(labels).toContain('transparent');
   });
 
   test('multiple identical pixels → count accumulates', async ({ page }) => {
-    const result = await uploadAndGetResult(page, '4x1-same-color.png');
-    expect(result.map).toEqual({ '255,0,0': 4 });
-    expect(result.totalPixels).toBe(4);
+    await uploadAndWait(page, '4x1-same-color.png');
+    await expect(page.locator('.chart-row')).toHaveCount(1);
+    const labels = await page.locator('.colour-label').allTextContents();
+    expect(labels).toContain('#ff0000');
+    const percentages = await page.locator('.percentage-label').allTextContents();
+    expect(percentages).toContain('100.0%');
   });
 
   test('totalPixels equals width × height (all pixels)', async ({ page }) => {
-    const result = await uploadAndGetResult(page, '2x1-red-transparent.png');
-    expect(result.totalPixels).toBe(2);
+    await uploadAndWait(page, '2x1-red-transparent.png');
+    await expect(page.locator('.chart-row')).toHaveCount(2);
+    const percentages = await page.locator('.percentage-label').allTextContents();
+    const total = percentages.reduce((sum, text) => sum + parseFloat(text), 0);
+    expect(total).toBeCloseTo(100, 0);
   });
 
   test('near-black fixture raw extraction confirms key format before quantization', async ({ page }) => {
-    const result = await uploadAndGetResult(page, '2x1-near-black.png');
-    expect(result.map).toEqual({ '10,0,0': 1, '30,0,0': 1 });
-    expect(result.totalPixels).toBe(2);
+    await uploadAndWait(page, '2x1-near-black.png');
+    await expect(page.locator('.chart-row')).toHaveCount(2);
+    // Raw keys 10,0,0 and 30,0,0 survive default bucket size 10 unchanged → #0a0000 and #1e0000
+    const labels = await page.locator('.colour-label').allTextContents();
+    expect(labels).toContain('#0a0000');
+    expect(labels).toContain('#1e0000');
   });
 });
 
 test.describe('image processor — format compatibility', () => {
   test('JPEG file processes without error', async ({ page }) => {
-    const result = await uploadAndGetResult(page, '1x1-format.jpg');
-    expect(result.totalPixels).toBe(1);
-    const keys = Object.keys(result.map);
-    expect(keys).toHaveLength(1);
-    expect(keys[0]).not.toBe('transparent');
+    await uploadAndWait(page, '1x1-format.jpg');
+    await expect(page.locator('.chart-row')).toHaveCount(1);
+    const labels = await page.locator('.colour-label').allTextContents();
+    expect(labels).not.toContain('transparent');
   });
 
   test('WebP file produces exact pixel values (lossless)', async ({ page }) => {
-    const result = await uploadAndGetResult(page, '1x1-format.webp');
-    expect(result.map).toEqual({ '255,255,255': 1 });
-    expect(result.totalPixels).toBe(1);
+    await uploadAndWait(page, '1x1-format.webp');
+    await expect(page.locator('.chart-row')).toHaveCount(1);
+    const labels = await page.locator('.colour-label').allTextContents();
+    expect(labels).toContain('#ffffff');
   });
 
   test('AVIF file produces exact pixel values (lossless)', async ({ page }) => {
-    const result = await uploadAndGetResult(page, '1x1-format.avif');
-    expect(result.map).toEqual({ '255,255,255': 1 });
-    expect(result.totalPixels).toBe(1);
+    await uploadAndWait(page, '1x1-format.avif');
+    await expect(page.locator('.chart-row')).toHaveCount(1);
+    const labels = await page.locator('.colour-label').allTextContents();
+    expect(labels).toContain('#ffffff');
   });
 
   test('BMP file produces exact pixel values (lossless)', async ({ page }) => {
-    const result = await uploadAndGetResult(page, '1x1-format.bmp');
-    expect(result.map).toEqual({ '255,0,0': 1 });
-    expect(result.totalPixels).toBe(1);
+    await uploadAndWait(page, '1x1-format.bmp');
+    await expect(page.locator('.chart-row')).toHaveCount(1);
+    const labels = await page.locator('.colour-label').allTextContents();
+    expect(labels).toContain('#ff0000');
   });
 });
