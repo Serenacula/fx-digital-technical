@@ -531,7 +531,8 @@
 
         <script>
             import { getForm } from "../lib/form.ts"
-            import { ImageProcessor, ValidationError, MIME_TYPE_LABELS } from "../lib/image-processor.ts"
+            import { ImageProcessor, ValidationError } from "../lib/image-processor.ts"
+            import { PreviewPanel } from "../lib/preview-panel.ts"
             import { AggregationEngine } from "../lib/aggregation-engine.ts"
             import { BarChart, ChartDisplay } from "../lib/bar-chart.ts"
             import { Controls } from "../lib/controls.ts"
@@ -543,6 +544,7 @@
             const barChart = new BarChart(form.chart, form.emptyPanel, form.loadingPanel, form.errorPanel, engine)
             const controls = new Controls(form.slider, form.sliderValue)
             const dropHandler = new DropHandler(form.dropOverlay, form.dropHint)
+            const previewPanel = new PreviewPanel(form.previewImage, form.detailName, form.detailMeta)
 
             function runRenderPipeline(): void {
                 if (dropHandler.busy) {
@@ -566,7 +568,6 @@
             controls.onBucketSizeChange = runRenderPipeline
 
             async function onFileSelected(file: File): Promise<void> {
-                form.previewImage.onload = null
                 try {
                     engine.resetBlacklist()
                     dropHandler.busy = true
@@ -574,25 +575,15 @@
                     barChart.showMessage(ChartDisplay.Loading)
                     form.fileInput.disabled = true
                     await imageProcessor.handleFile(file)
-                    form.detailName.textContent = file.name
-                    form.previewImage.onload = () => {
-                        // naturalWidth/naturalHeight are only available after image decode completes
-                        form.detailMeta.textContent = `${MIME_TYPE_LABELS[file.type] ?? file.type} · ${form.previewImage.naturalWidth} × ${form.previewImage.naturalHeight} px`
-                    }
-                    form.previewImage.src = ""
-                    form.previewImage.src = imageProcessor.previewUrl!
-                    form.previewImage.classList.add("visible")
+                    previewPanel.show(file, imageProcessor.previewUrl!)
                     dropHandler.busy = false
                     runRenderPipeline()
                 } catch (error) {
                     dropHandler.busy = false
                     controls.disable()
                     barChart.showMessage(ChartDisplay.Error, error instanceof ValidationError ? error.message : "Could not read image.")
-                    form.detailName.textContent = ""
-                    form.detailMeta.textContent = ""
                     form.fileInput.disabled = false
-                    form.previewImage.src = ""
-                    form.previewImage.classList.remove("visible")
+                    previewPanel.hide()
                 }
             }
 
