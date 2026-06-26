@@ -524,14 +524,15 @@
         </div>
 
         <script>
-            import { getForm } from "../lib/form.ts"
-            import { ImageProcessor, ValidationError, MIME_TYPE_LABELS } from "../lib/image-processor.ts"
+            import { getForm, MIME_TYPE_LABELS } from "../lib/form.ts"
+            import { ImageProcessor, ValidationError } from "../lib/image-processor.ts"
             import { AggregationEngine } from "../lib/aggregation-engine.ts"
             import { BarChart } from "../lib/bar-chart.ts"
 
             const form = getForm(document)
             const imageProcessor = new ImageProcessor()
             const engine = new AggregationEngine(imageProcessor)
+            const barChart = new BarChart(form.chart, engine)
 
             let debounceTimer: ReturnType<typeof setTimeout> | undefined
             let busyHintTimer: ReturnType<typeof setTimeout> | undefined
@@ -572,50 +573,30 @@
                 form.slider.disabled = true
             }
 
-            function showChart(): void {
-                isProcessing = false
-                form.emptyState.style.display = "none"
-                form.loadingState.style.display = "none"
-                form.errorState.style.display = "none"
-                form.chart.classList.add("visible")
-                form.fileInput.disabled = false
-                form.slider.disabled = false
-            }
-
-            let barChart!: BarChart
-
             function runRenderPipeline(): void {
                 if (!imageProcessor.rawMap) return
                 const bucketSize = parseInt(form.slider.value, 10)
                 if (!Number.isFinite(bucketSize) || bucketSize < 1) return
                 const { included, excluded } = engine.aggregateRgb(bucketSize)
                 barChart.render(included, excluded, bucketSize)
-                showChart()
+                isProcessing = false
+                form.emptyState.style.display = "none"
+                form.loadingState.style.display = "none"
+                form.errorState.style.display = "none"
+                form.fileInput.disabled = false
+                form.slider.disabled = false
             }
 
-            barChart = new BarChart(form.chart, engine, imageProcessor, runRenderPipeline)
+            barChart.onToggle = runRenderPipeline
 
             async function handleFile(file: File): Promise<void> {
                 engine.resetBlacklist()
                 showLoading()
-
-                const fileReaderPromise = new Promise<string>((resolve, reject) => {
-                    const reader = new FileReader()
-                    reader.onload = () => resolve(reader.result as string)
-                    reader.onerror = () => reject(new Error("Could not read image."))
-                    reader.onabort = () => reject(new Error("Could not read image."))
-                    reader.readAsDataURL(file)
-                })
-
                 try {
-                    const [previewUrl] = await Promise.all([
-                        fileReaderPromise,
-                        imageProcessor.loadFile(file),
-                    ])
+                    const previewUrl = await imageProcessor.processFile(file)
                     form.previewImage.onload = () => {
-                        const typeLabel = MIME_TYPE_LABELS[file.type] ?? file.type
                         form.detailName.textContent = file.name
-                        form.detailMeta.textContent = `${typeLabel} · ${form.previewImage.naturalWidth} × ${form.previewImage.naturalHeight} px`
+                        form.detailMeta.textContent = `${MIME_TYPE_LABELS[file.type] ?? file.type} · ${form.previewImage.naturalWidth} × ${form.previewImage.naturalHeight} px`
                     }
                     form.previewImage.src = previewUrl
                     form.previewImage.classList.add("visible")

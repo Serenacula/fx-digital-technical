@@ -1,4 +1,4 @@
-import type { RawMap } from './colour-algorithm.ts'
+export type RawMap = Record<string, number>
 
 const ALLOWED_MIME_TYPES = new Set([
     'image/jpeg',
@@ -9,14 +9,6 @@ const ALLOWED_MIME_TYPES = new Set([
 ])
 
 const MAX_FILE_SIZE = 16 * 1024 * 1024
-
-export const MIME_TYPE_LABELS: Record<string, string> = {
-    'image/jpeg': 'JPEG',
-    'image/png': 'PNG',
-    'image/webp': 'WebP',
-    'image/avif': 'AVIF',
-    'image/bmp': 'BMP',
-}
 
 export class ValidationError extends Error {
     constructor(message: string) {
@@ -29,19 +21,42 @@ export class ImageProcessor {
     rawMap: RawMap | null = null
     totalPixels: number = 0
 
-    async loadFile(file: File): Promise<void> {
+    async processFile(file: File): Promise<string> {
+        this.rawMap = null
+        this.totalPixels = 0
+        this.validate(file)
+
+        const [previewUrl] = await Promise.all([
+            this.readAsDataUrl(file),
+            this.extractPixels(file),
+        ])
+
+        return previewUrl
+    }
+
+    private validate(file: File): void {
         if (!ALLOWED_MIME_TYPES.has(file.type)) {
             throw new ValidationError(
                 'Unsupported file type. Please upload a JPEG, PNG, WebP, AVIF, or BMP.'
             )
         }
-
         if (file.size > MAX_FILE_SIZE) {
             throw new ValidationError('File is too large. Maximum size is 16 MB.')
         }
+    }
 
+    private readAsDataUrl(file: File): Promise<string> {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader()
+            reader.onload = () => resolve(reader.result as string)
+            reader.onerror = () => reject(new Error('Could not read image.'))
+            reader.onabort = () => reject(new Error('Could not read image.'))
+            reader.readAsDataURL(file)
+        })
+    }
+
+    private async extractPixels(file: File): Promise<void> {
         const objectUrl = URL.createObjectURL(file)
-
         try {
             const image = await this.loadImage(objectUrl)
             const canvas = document.createElement('canvas')
@@ -49,9 +64,7 @@ export class ImageProcessor {
             canvas.height = image.naturalHeight
 
             const context = canvas.getContext('2d')
-            if (!context) {
-                throw new Error('Could not read image.')
-            }
+            if (!context) throw new Error('Could not read image.')
 
             context.drawImage(image, 0, 0)
 
@@ -59,12 +72,9 @@ export class ImageProcessor {
             const pixels = imageData.data
             this.totalPixels = canvas.width * canvas.height
 
-            if (this.totalPixels === 0) {
-                throw new ValidationError('Image has no pixels.')
-            }
+            if (this.totalPixels === 0) throw new ValidationError('Image has no pixels.')
 
             const map: RawMap = {}
-
             for (let index = 0; index < pixels.length; index += 4) {
                 const red = pixels[index]!
                 const green = pixels[index + 1]!
@@ -78,7 +88,6 @@ export class ImageProcessor {
                     map[key] = (map[key] ?? 0) + 1
                 }
             }
-
             this.rawMap = map
         } finally {
             URL.revokeObjectURL(objectUrl)

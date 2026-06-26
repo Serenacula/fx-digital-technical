@@ -1,46 +1,121 @@
-import {
-    buildExcludedKeys,
-    reaggregateExcluding,
-    rawKeysForBucket,
-    sortedColours,
-} from './colour-algorithm.ts'
-import type { ColourEntry, BlacklistEntry } from './colour-algorithm.ts'
+import type { RawMap } from './image-processor.ts'
 import type { ImageProcessor } from './image-processor.ts'
 
-export type { ColourEntry, BlacklistEntry }
+type AggregatedMap = Record<string, number>
+
+export interface ColourEntry {
+    hex: string
+    count: number
+    percentage: number
+    isTransparent: boolean
+    quantizedKey: string
+}
+
+export interface BlacklistEntry {
+    quantizedKey: string
+    bucketSize: number
+    hex: string
+    isTransparent: boolean
+}
+
+export interface ExcludedEntry extends BlacklistEntry {
+    percentage: number
+}
 
 export interface AggregationResult {
     included: ColourEntry[]
-    excluded: BlacklistEntry[]
+    excluded: ExcludedEntry[]
+}
+
+export function quantize(value: number, bucketSize: number): number {
+    const rounded = Math.round(value / bucketSize) * bucketSize
+    return Math.min(255, Math.max(0, rounded))
+}
+
+export function toHex(red: number, green: number, blue: number): string {
+    return '#' + [red, green, blue]
+        .map(channel => channel.toString(16).padStart(2, '0'))
+        .join('')
+}
+
+function parseRgbKey(key: string): [number, number, number] {
+    const parts = key.split(',')
+    if (parts.length !== 3) throw new Error(`Malformed colour key: "${key}"`)
+    return [parseInt(parts[0]!, 10), parseInt(parts[1]!, 10), parseInt(parts[2]!, 10)]
+}
+
+function rawKeysForBucket(map: RawMap, bucketKey: string, bucketSize: number): string[] {
+    if (bucketKey === 'transparent') {
+        return 'transparent' in map ? ['transparent'] : []
+    }
+    const [quantRed, quantGreen, quantBlue] = parseRgbKey(bucketKey)
+    return Object.keys(map).filter(key => {
+        if (key === 'transparent') return false
+        const [red, green, blue] = parseRgbKey(key)
+        return (
+            quantize(red, bucketSize) === quantRed &&
+            quantize(green, bucketSize) === quantGreen &&
+            quantize(blue, bucketSize) === quantBlue
+        )
+    })
+}
+
+function buildExcludedKeys(map: RawMap, blacklist: BlacklistEntry[]): Set<string> {
+    const excluded = new Set<string>()
+    for (const entry of blacklist) {
+        for (const key of rawKeysForBucket(map, entry.quantizedKey, entry.bucketSize)) {
+            excluded.add(key)
+        }
+    }
+    return excluded
+}
+
+function reaggregate(map: RawMap, bucketSize: number, excludedKeys: Set<string>): AggregatedMap {
+    const result: AggregatedMap = {}
+    for (const [key, count] of Object.entries(map)) {
+        if (excludedKeys.has(key)) continue
+        if (key === 'transparent') {
+            result['transparent'] = (result['transparent'] ?? 0) + count
+            continue
+        }
+        const [red, green, blue] = parseRgbKey(key)
+        const quantizedKey = `${quantize(red, bucketSize)},${quantize(green, bucketSize)},${quantize(blue, bucketSize)}`
+        result[quantizedKey] = (result[quantizedKey] ?? 0) + count
+    }
+    return result
+}
+
+function toColourEntries(map: AggregatedMap, totalPixels: number): ColourEntry[] {
+    if (totalPixels <= 0) return []
+    return Object.entries(map)
+        .map(([key, count]): ColourEntry => {
+            if (key === 'transparent') {
+                return { hex: 'transparent', count, percentage: (count / totalPixels) * 100, isTransparent: true, quantizedKey: 'transparent' }
+            }
+            const [red, green, blue] = parseRgbKey(key)
+            return { hex: toHex(red, green, blue), count, percentage: (count / totalPixels) * 100, isTransparent: false, quantizedKey: key }
+        })
+        .sort((a, b) => b.count - a.count)
 }
 
 export class AggregationEngine {
     private imageProcessor: ImageProcessor
-    blacklist: BlacklistEntry[] = []
+    private blacklist: BlacklistEntry[] = []
 
     constructor(imageProcessor: ImageProcessor) {
         this.imageProcessor = imageProcessor
     }
 
     ban(entry: BlacklistEntry): void {
-        const bucketSize = entry.bucketSize
-        const duplicate = this.blacklist.some(
-            existing =>
-                existing.quantizedKey === entry.quantizedKey &&
-                existing.bucketSize === bucketSize
+        const isDuplicate = this.blacklist.some(
+            existing => existing.quantizedKey === entry.quantizedKey && existing.bucketSize === entry.bucketSize
         )
-        if (!duplicate) {
-            this.blacklist.push(entry)
-        }
+        if (!isDuplicate) this.blacklist.push(entry)
     }
 
     unban(entry: BlacklistEntry): void {
         this.blacklist = this.blacklist.filter(
-            existing =>
-                !(
-                    existing.quantizedKey === entry.quantizedKey &&
-                    existing.bucketSize === entry.bucketSize
-                )
+            existing => !(existing.quantizedKey === entry.quantizedKey && existing.bucketSize === entry.bucketSize)
         )
     }
 
@@ -53,18 +128,18 @@ export class AggregationEngine {
         if (!rawMap) return { included: [], excluded: [] }
 
         const excludedKeys = buildExcludedKeys(rawMap, this.blacklist)
-        const includedMap = reaggregateExcluding(rawMap, bucketSize, excludedKeys)
-        const includedTotal = Object.values(includedMap).reduce(
-            (sum, count) => sum + count,
-            0
-        )
-        const included = sortedColours(includedMap, includedTotal)
-        return { included, excluded: this.blacklist }
-    }
+        const includedMap = reaggregate(rawMap, bucketSize, excludedKeys)
+        const includedTotal = Object.values(includedMap).reduce((sum, count) => sum + count, 0)
 
-    rawKeysForEntry(entry: BlacklistEntry): string[] {
-        const rawMap = this.imageProcessor.rawMap
-        if (!rawMap) return []
-        return rawKeysForBucket(rawMap, entry.quantizedKey, entry.bucketSize)
+        const excluded: ExcludedEntry[] = this.blacklist.map(entry => {
+            const keys = rawKeysForBucket(rawMap, entry.quantizedKey, entry.bucketSize)
+            const count = keys.reduce((sum, key) => sum + (rawMap[key] ?? 0), 0)
+            const percentage = this.imageProcessor.totalPixels > 0
+                ? (count / this.imageProcessor.totalPixels) * 100
+                : 0
+            return { ...entry, percentage }
+        })
+
+        return { included: toColourEntries(includedMap, includedTotal), excluded }
     }
 }

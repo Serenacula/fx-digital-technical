@@ -6,7 +6,7 @@ export default defineConfig({
       {
         test: {
           name: 'node',
-          include: ['tests/unit/colour-algorithm.test.ts'],
+          include: ['tests/unit/aggregation-engine.test.ts'],
           environment: 'node',
         },
       },
