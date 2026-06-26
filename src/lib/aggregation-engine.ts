@@ -59,11 +59,20 @@ export class AggregationEngine {
 
         this.ensureParsedKeyCache(rawMap)
 
-        const excludedKeys = this.buildExcludedKeys(rawMap)
+        const blacklistKeys = new Map<BlacklistEntry, string[]>()
+        const excludedKeys = new Set<string>()
+        for (const entry of this.blacklist) {
+            const keys = this.rawKeysForBucket(rawMap, entry.quantizedKey, entry.bucketSize)
+            blacklistKeys.set(entry, keys)
+            for (const key of keys) {
+                excludedKeys.add(key)
+            }
+        }
+
         const includedMap = this.reaggregate(rawMap, bucketSize, excludedKeys)
 
         const excluded: ExcludedEntry[] = this.blacklist.map(entry => {
-            const keys = this.rawKeysForBucket(rawMap, entry.quantizedKey, entry.bucketSize)
+            const keys = blacklistKeys.get(entry) ?? []
             const count = keys.reduce((sum, key) => sum + (rawMap[key] ?? 0), 0)
             const percentage = this.imageProcessor.totalPixels > 0
                 ? (count / this.imageProcessor.totalPixels) * 100
@@ -119,16 +128,6 @@ export class AggregationEngine {
         })
     }
 
-    private buildExcludedKeys(map: RawMap): Set<string> {
-        const excluded = new Set<string>()
-        for (const entry of this.blacklist) {
-            for (const key of this.rawKeysForBucket(map, entry.quantizedKey, entry.bucketSize)) {
-                excluded.add(key)
-            }
-        }
-        return excluded
-    }
-
     private reaggregate(map: RawMap, bucketSize: number, excludedKeys: Set<string>): AggregatedMap {
         const result: AggregatedMap = {}
         for (const [key, count] of Object.entries(map)) {
@@ -156,6 +155,7 @@ export class AggregationEngine {
                 if (key === 'transparent') {
                     return { hex: 'transparent', count, percentage: (count / totalPixels) * 100, isTransparent: true, quantizedKey: 'transparent' }
                 }
+                // The _parsedKeyCache holds raw pixel keys, not quantized bucket keys — bypass it here.
                 const [red, green, blue] = this.parseRgbKey(key)
                 return { hex: toHex(red, green, blue), count, percentage: (count / totalPixels) * 100, isTransparent: false, quantizedKey: key }
             })

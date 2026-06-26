@@ -582,9 +582,10 @@
             controls.onBucketSizeChange = runRenderPipeline
 
             async function onFileSelected(file: File): Promise<void> {
-                engine.resetBlacklist()
-                showLoading()
+                form.previewImage.onload = null
                 try {
+                    engine.resetBlacklist()
+                    showLoading()
                     await imageProcessor.handleFile(file)
                     form.detailName.textContent = file.name
                     form.previewImage.onload = () => {
@@ -597,7 +598,6 @@
                 } catch (error) {
                     showError(error instanceof ValidationError ? error.message : "Could not read image.")
                     form.previewImage.classList.remove("visible")
-                    form.previewImage.onload = null
                     form.previewImage.src = ""
                 }
             }

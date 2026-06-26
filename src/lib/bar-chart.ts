@@ -14,7 +14,7 @@ export enum ChartDisplay {
 export class BarChart {
     private container: HTMLElement
     private engine: AggregationEngine
-    private currentBucketSize: number = 1
+    private currentBucketSize: number = NaN
     onToggle: (() => void) | null = null
 
     // Placeholders shown in the chart area when there is no chart to display
@@ -108,6 +108,9 @@ export class BarChart {
         excludeBtn.innerHTML = EYE_OPEN_SVG
         excludeBtn.title = 'Exclude colour'
         excludeBtn.addEventListener('click', () => {
+            if (!Number.isFinite(this.currentBucketSize)) {
+                return
+            }
             this.engine.ban({
                 quantizedKey: entry.quantizedKey,
                 bucketSize: this.currentBucketSize,

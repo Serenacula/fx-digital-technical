@@ -67,7 +67,13 @@ export class ImageProcessor {
     private async extractPixels(file: File): Promise<void> {
         const objectUrl = URL.createObjectURL(file)
         try {
-            const image = await this.loadImage(objectUrl)
+            const timeoutMs = 10_000
+            const image = await Promise.race([
+                this.loadImage(objectUrl),
+                new Promise<never>((_, reject) =>
+                    setTimeout(() => reject(new Error('Could not read image.')), timeoutMs)
+                ),
+            ])
             const canvas = document.createElement('canvas')
             canvas.width = image.naturalWidth
             canvas.height = image.naturalHeight

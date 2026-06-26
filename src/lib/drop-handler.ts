@@ -36,6 +36,9 @@ export class DropHandler {
         })
 
         window.addEventListener('drop', (event) => {
+            if (!event.dataTransfer?.types.includes('Files')) {
+                return
+            }
             event.preventDefault()
             this.dropOverlay.classList.remove('visible')
             if (this.busy) {
