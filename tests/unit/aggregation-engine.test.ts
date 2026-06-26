@@ -48,7 +48,7 @@ describe('quantize', () => {
 })
 
 describe('toHex', () => {
-    it('primary colours', () => {
+    it('primary colors', () => {
         expect(toHex(255, 0, 0)).toBe('#ff0000')
         expect(toHex(0, 255, 0)).toBe('#00ff00')
         expect(toHex(0, 0, 255)).toBe('#0000ff')
@@ -79,7 +79,7 @@ describe('AggregationEngine.aggregateRgb', () => {
         expect(entry!.percentage).toBeCloseTo(100)
     })
 
-    it('collapses similar colours into one bucket', () => {
+    it('collapses similar colors into one bucket', () => {
         const engine = makeEngine({ '11,0,0': 3, '14,0,0': 7 })
         const { included } = engine.aggregateRgb(10)
         expect(included).toHaveLength(1)
@@ -115,9 +115,9 @@ describe('AggregationEngine.aggregateRgb', () => {
         expect(engine.aggregateRgb(10).included).toEqual([])
     })
 
-    it('throws on malformed colour key', () => {
+    it('throws on malformed color key', () => {
         const engine = makeEngine({ 'bad-key': 1 })
-        expect(() => engine.aggregateRgb(10)).toThrow('Malformed colour key: "bad-key"')
+        expect(() => engine.aggregateRgb(10)).toThrow('Malformed color key: "bad-key"')
     })
 })
 
@@ -192,7 +192,7 @@ describe('AggregationEngine blacklist', () => {
         expect(included[0]!.percentage).toBeCloseTo(100, 3)
     })
 
-    it('included percentages rescale correctly when multiple colours remain after ban', () => {
+    it('included percentages rescale correctly when multiple colors remain after ban', () => {
         // rawMap: 3 red + 1 green + 6 blue = 10 pixels. Ban green.
         // includedTotal = 9 (3 red + 6 blue). red = 3/9 * 100 ≈ 33.33%, blue = 6/9 * 100 ≈ 66.67%
         const engine = makeEngine({ '255,0,0': 3, '0,255,0': 1, '0,0,255': 6 }, 10)

@@ -92,7 +92,7 @@ export class BarChart {
         row.className = 'chart-row'
 
         const label = document.createElement('div')
-        label.className = 'colour-label'
+        label.className = 'color-label'
         label.textContent = entry.isTransparent ? 'transparent' : entry.hex
         row.appendChild(label)
 
@@ -129,12 +129,12 @@ export class BarChart {
         row.className = 'chart-row excluded'
 
         const label = document.createElement('div')
-        label.className = 'colour-label'
+        label.className = 'color-label'
         const hexLine = document.createElement('span')
         hexLine.textContent = entry.isTransparent ? 'transparent' : entry.hex
         label.appendChild(hexLine)
         const groupingLine = document.createElement('span')
-        groupingLine.className = 'colour-grouping'
+        groupingLine.className = 'color-grouping'
         groupingLine.textContent = `quantisation: ${entry.bucketSize}`
         label.appendChild(groupingLine)
         row.appendChild(label)

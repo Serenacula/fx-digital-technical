@@ -44,7 +44,7 @@ test.describe('UI page — results state', () => {
     const rows = chart.locator('.chart-row');
     await expect(rows).toHaveCount(2);
 
-    const labels = await chart.locator('.colour-label').allTextContents();
+    const labels = await chart.locator('.color-label').allTextContents();
     expect(labels).toContain('#ff0000');
     expect(labels).toContain('#0000ff');
 
@@ -67,7 +67,7 @@ test.describe('UI page — results state', () => {
     const rows = page.locator('.chart-row');
     await expect(rows).toHaveCount(2);
 
-    const labels = await page.locator('.colour-label').allTextContents();
+    const labels = await page.locator('.color-label').allTextContents();
     expect(labels).toContain('transparent');
 
     const transparentRowIndex = labels.indexOf('transparent');
@@ -128,7 +128,7 @@ test.describe('UI page — slider', () => {
     const urlCount = await page.evaluate(() => window.__createObjectURLCount);
     expect(urlCount).toBe(1);
 
-    const labels = await page.locator('.colour-label').allTextContents();
+    const labels = await page.locator('.color-label').allTextContents();
     expect(labels).toContain('#ff0000');
     expect(labels).toContain('#0000ff');
   });
@@ -188,9 +188,9 @@ test.describe('UI page — re-upload and recovery', () => {
     await expect(page.locator('.chart-row').first()).toBeVisible({ timeout: 5000 });
 
     await page.locator('#file-input').setInputFiles(join(fixturesDir, '1x1-white.png'));
-    await expect(page.locator('.colour-label')).toContainText('#ffffff', { timeout: 5000 });
+    await expect(page.locator('.color-label')).toContainText('#ffffff', { timeout: 5000 });
 
-    const labels = await page.locator('.colour-label').allTextContents();
+    const labels = await page.locator('.color-label').allTextContents();
     expect(labels).toContain('#ffffff');
     expect(labels).not.toContain('#ff0000');
 
@@ -214,7 +214,7 @@ test.describe('UI page — re-upload and recovery', () => {
     await expect(page.locator('.chart-row').first()).toBeVisible({ timeout: 5000 });
 
     await expect(page.locator('#error-state')).not.toBeVisible();
-    const labels = await page.locator('.colour-label').allTextContents();
+    const labels = await page.locator('.color-label').allTextContents();
     expect(labels).toContain('#ffffff');
     const percentages = await page.locator('.percentage-label').allTextContents();
     expect(percentages).toContain('100.0%');
@@ -258,7 +258,7 @@ test.describe('UI page — drag-and-drop', () => {
 
     await expect(page.locator('.chart-row').first()).toBeVisible({ timeout: 5000 });
 
-    const labels = await page.locator('.colour-label').allTextContents();
+    const labels = await page.locator('.color-label').allTextContents();
     expect(labels).toContain('#ff0000');
     expect(labels).toContain('#0000ff');
 

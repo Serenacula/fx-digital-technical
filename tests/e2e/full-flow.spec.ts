@@ -19,7 +19,7 @@ test.describe('E2E: Full upload-to-chart pipeline', () => {
     const rows = page.locator('.chart-row');
     await expect(rows).toHaveCount(2);
 
-    const labels = await page.locator('.colour-label').allTextContents();
+    const labels = await page.locator('.color-label').allTextContents();
     expect(labels).toContain('#ff0000');
     expect(labels).toContain('#0000ff');
 
@@ -31,7 +31,7 @@ test.describe('E2E: Full upload-to-chart pipeline', () => {
     await page.locator('#quantize-slider').dispatchEvent('input');
     await page.waitForTimeout(100);
 
-    const labelsAfterSlider = await page.locator('.colour-label').allTextContents();
+    const labelsAfterSlider = await page.locator('.color-label').allTextContents();
     expect(labelsAfterSlider).toContain('#ff0000');
     expect(labelsAfterSlider).toContain('#0000ff');
     const percentagesAfterSlider = await page.locator('.percentage-label').allTextContents();
@@ -40,7 +40,7 @@ test.describe('E2E: Full upload-to-chart pipeline', () => {
     expect(consoleErrors).toHaveLength(0);
   });
 
-  test('Scenario 2: slider quantization merges colours end-to-end', async ({ page }) => {
+  test('Scenario 2: slider quantization merges colors end-to-end', async ({ page }) => {
     await page.addInitScript(() => {
       let count = 0;
       const original = URL.createObjectURL.bind(URL);
@@ -55,7 +55,7 @@ test.describe('E2E: Full upload-to-chart pipeline', () => {
     await page.locator('#file-input').setInputFiles(join(fixturesDir, '2x1-near-black.png'));
     await expect(page.locator('.chart-row').first()).toBeVisible({ timeout: 5000 });
 
-    const labelsAtTen = await page.locator('.colour-label').allTextContents();
+    const labelsAtTen = await page.locator('.color-label').allTextContents();
     expect(labelsAtTen).toContain('#0a0000');
     expect(labelsAtTen).toContain('#1e0000');
 
@@ -66,7 +66,7 @@ test.describe('E2E: Full upload-to-chart pipeline', () => {
     const rowCount = await page.locator('.chart-row').count();
     expect(rowCount).toBe(1);
 
-    const labelsAtSixtyFour = await page.locator('.colour-label').allTextContents();
+    const labelsAtSixtyFour = await page.locator('.color-label').allTextContents();
     expect(labelsAtSixtyFour).toContain('#000000');
 
     const percentages = await page.locator('.percentage-label').allTextContents();
@@ -84,7 +84,7 @@ test.describe('E2E: Full upload-to-chart pipeline', () => {
     const rows = page.locator('.chart-row');
     await expect(rows).toHaveCount(2);
 
-    const labels = await page.locator('.colour-label').allTextContents();
+    const labels = await page.locator('.color-label').allTextContents();
     expect(labels).toContain('#ff0000');
     expect(labels).toContain('transparent');
 
@@ -124,7 +124,7 @@ test.describe('E2E: Full upload-to-chart pipeline', () => {
     await expect(page.locator('.chart-row').first()).toBeVisible({ timeout: 5000 });
 
     await expect(page.locator('#error-state')).not.toBeVisible();
-    const labels = await page.locator('.colour-label').allTextContents();
+    const labels = await page.locator('.color-label').allTextContents();
     expect(labels).toContain('#ffffff');
     const percentages = await page.locator('.percentage-label').allTextContents();
     expect(percentages).toContain('100.0%');

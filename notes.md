@@ -81,3 +81,18 @@ All three implementation styles had issues. 1 leaves our definition of 'white' v
 I ended up going with 3, since I figured it has the nicest UI, and isn't too difficult to solve.
 
 I solved the quant problem by including the quant as part of the excluded colour: so any colour of that colourset gets included.
+
+---
+
+## Code Review
+
+Reviewed the code, realised that I didn't like the way it had been set up, so did a big refactor to make it fit how I wanted it. Notably:
+
+- Index as an orchestrator, not doing any actual logic
+- TS factory for DOM handles and the like
+- TS files to manage various UI elements:
+    - Bar chart
+    - Controls
+    - Drop handler
+- ImageProcessor singleton to handle the file and extracting the raw contents from it
+- AggregationEngine singleton to handle the actual logic of quant and colour extraction

@@ -116,7 +116,7 @@ export class AggregationEngine {
     private parseRgbKey(key: string): [number, number, number] {
         const parts = key.split(',')
         if (parts.length !== 3) {
-            throw new Error(`Malformed colour key: "${key}"`)
+            throw new Error(`Malformed color key: "${key}"`)
         }
         return [parseInt(parts[0]!, 10), parseInt(parts[1]!, 10), parseInt(parts[2]!, 10)]
     }

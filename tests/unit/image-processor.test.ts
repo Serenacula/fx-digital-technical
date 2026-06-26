@@ -87,7 +87,7 @@ describe('ImageProcessor.handleFile extraction', () => {
             onload: (() => void) | null = null
             onerror: (() => void) | null = null
             set src(_value: string) {
-                // Fire onload on next microtask to match real async behaviour
+                // Fire onload on next microtask to match real async behavior
                 Promise.resolve().then(() => {
                     this.onload?.()
                 })
@@ -104,7 +104,7 @@ describe('ImageProcessor.handleFile extraction', () => {
             onabort: (() => void) | null = null
             readAsDataURL(_file: File): void {
                 this.result = STUB_DATA_URL
-                // Fire onload on next microtask to match real async behaviour
+                // Fire onload on next microtask to match real async behavior
                 Promise.resolve().then(() => {
                     this.onload?.(null)
                 })
